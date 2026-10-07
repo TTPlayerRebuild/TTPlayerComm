@@ -19,3 +19,7 @@
  If you would like to negotiate alternate licensing terms, you may do
  so by contacting: Underbit Technologies, Inc. <info@underbit.com>
 
+
+Additional notices in the 0.16.4 source and build scripts:
+Copyright (C) 2021-2026 Tenacity Team and Contributors
+Build-tree TTPlayer compatibility adaptations: Sonic853 project, 2026.

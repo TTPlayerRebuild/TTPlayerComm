@@ -1,21 +1,36 @@
 include(FetchContent)
+# Release source archives carry these exact upstream trees. Ordinary repository
+# builds still download the pinned archives below; no vendor sources are tracked.
+foreach(_dependency zlib id3 kissfft ssrc mpeg dream detours)
+  set(_bundled "${CMAKE_CURRENT_SOURCE_DIR}/third_party_sources/${_dependency}")
+  string(TOUPPER "FETCHCONTENT_SOURCE_DIR_TTPCOMM_${_dependency}_SOURCE" _override)
+  if(EXISTS "${_bundled}" AND NOT DEFINED ${_override})
+    set(${_override} "${_bundled}" CACHE PATH "Source archive dependency")
+  endif()
+endforeach()
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+  "${CMAKE_CURRENT_LIST_DIR}/adapt_id3.py" "${CMAKE_CURRENT_LIST_DIR}/adapt_fft.py")
 FetchContent_Declare(ttpcomm_zlib_source
   URL https://codeload.github.com/madler/zlib/zip/refs/tags/v1.3.2
   URL_HASH SHA256=31fd9fee98812abcf147d0e103bc4d2f983c35a8d7a807a328a299f3a74e0050
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE SOURCE_SUBDIR unused)
 FetchContent_Declare(ttpcomm_id3_source
-  URL https://codeload.github.com/audacity/libid3tag/zip/9252f26028510c7a822372628a6725ff89a4762e
-  URL_HASH SHA256=91112a0778f42a74f0f5d107fa4563c9bf755e4395e3a53bec6197e1a7963b09
+  URL https://codeberg.org/tenacityteam/libid3tag/archive/0.16.4.tar.gz
+  URL_HASH SHA256=2e9058af51e5f3881c13c55a9790abb9870812cc0f5917b6f3e825c6ae9b9f39
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE SOURCE_SUBDIR unused)
 FetchContent_MakeAvailable(ttpcomm_zlib_source ttpcomm_id3_source)
 FetchContent_Declare(ttpcomm_kissfft_source
-  URL https://codeload.github.com/mborgerding/kissfft/zip/refs/tags/131.1.0
-  URL_HASH SHA256=9c2e19cc34ed910dcb509fd8ab561a523b923b6578703ace8c8f37f5a286bb25
+  URL https://codeload.github.com/mborgerding/kissfft/zip/refs/tags/131.2.0
+  URL_HASH SHA256=0fd8757f845acfdf178470be3435e6e5a65e8bfa2564bf2e5d3163be166121c1
   DOWNLOAD_EXTRACT_TIMESTAMP TRUE SOURCE_SUBDIR unused)
 FetchContent_MakeAvailable(ttpcomm_kissfft_source)
-add_library(ttpcomm_fft STATIC "${ttpcomm_kissfft_source_SOURCE_DIR}/kiss_fft.c"
-  "${ttpcomm_kissfft_source_SOURCE_DIR}/kiss_fftr.c")
+set(fft_dir "${CMAKE_CURRENT_BINARY_DIR}/fft-adapted")
+execute_process(COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/adapt_fft.py"
+  "${ttpcomm_kissfft_source_SOURCE_DIR}" "${fft_dir}"
+  COMMAND_ERROR_IS_FATAL ANY)
+add_library(ttpcomm_fft STATIC "${fft_dir}/kiss_fft.c" "${fft_dir}/kiss_fftr.c")
 target_include_directories(ttpcomm_fft PUBLIC "${ttpcomm_kissfft_source_SOURCE_DIR}")
+target_include_directories(ttpcomm_fft PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(ttpcomm_fft PRIVATE /arch:IA32 /fp:precise)
 set(zlib_sources adler32.c crc32.c deflate.c infback.c inffast.c inflate.c
   inftrees.c trees.c zutil.c compress.c uncompr.c)
@@ -106,3 +121,8 @@ list(TRANSFORM detours_sources PREPEND "${ttpcomm_detours_source_SOURCE_DIR}/src
 add_library(ttpcomm_detours STATIC ${detours_sources} "${detours_dir}/detours.cpp")
 target_include_directories(ttpcomm_detours PUBLIC "${ttpcomm_detours_source_SOURCE_DIR}/src")
 target_compile_definitions(ttpcomm_detours PRIVATE _WIN32_WINNT=0x0501 WIN32_LEAN_AND_MEAN)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/dependency-sources.txt" "")
+foreach(_dependency zlib id3 kissfft ssrc mpeg dream detours)
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/dependency-sources.txt"
+    "${_dependency}=${ttpcomm_${_dependency}_source_SOURCE_DIR}\n")
+endforeach()

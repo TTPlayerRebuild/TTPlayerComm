@@ -609,14 +609,16 @@
     }
   ],
   "known_differences": [
-    "105: measured integer spectrum differences up to one unit; not bit-exact",
+    "50-79: libid3tag 0.16.4 with TTPlayer ABI/serialization; v2.2 PIC MIME translation and bounded UTF16 recovery improve malformed/legacy inputs; terminal ff00 unsynchronisation is bounded",
     "106: safe bounded parsing supports unaligned little-endian frames rejected by the original",
     "80-83: zlib 1.3.2 backend; legacy init window constraints retained, malformed-stream parity not exhaustive",
     "90-93: reference random-table tail is uninitialized; reconstruction initializes it to zero; pixel tests normalize only that reference slot",
     "102: reference SSRC downsample history tail is uninitialized; reconstruction zeros it; differential tests normalize that reference sample",
     "11-14: oversized and truncated ADU packets are rejected instead of reading beyond the packet",
     "200-206: invalid HWND/allocation failures are checked; invalid ordinal 204 bar is rejected instead of writing through an invalid pointer",
-    "300-302: bounded device parsing and corrected output-capacity checks"
+    "300-302: bounded device parsing and corrected output-capacity checks",
+    "5: registered callbacks receive (1, nullptr) and termination status 3; absent/reentrant callbacks retain modern fail-fast, legacy systems terminate directly without the original error dialog or DLL cleanup",
+    "80-83: some complete raw Deflate streams return STREAM_END where zlib 1.1.4 waits for lookahead despite complete output"
   ],
   "release_output": "ttpcomm.dll"
 }
