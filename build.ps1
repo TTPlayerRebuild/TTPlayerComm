@@ -26,7 +26,8 @@ Assert-TtpCommFileVersion $dll $PackageVersion
 $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash.ToLowerInvariant()
 $abi = Get-Content -LiteralPath (Join-Path $output 'abi-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $imports = Get-Content -LiteralPath (Join-Path $output 'legacy-imports.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $abi.complete -or @($abi.exports.PSObject.Properties).Count -ne 67 -or
+if (-not $abi.complete -or $abi.legacy_export_count -ne 67 -or $abi.extension_export_count -ne 1 -or
+    @($abi.exports.PSObject.Properties).Count -ne 68 -or
     $abi.sha256 -cne $hash -or $imports.sha256 -cne $hash -or
     $imports.minimum_subsystem -ne '5.01' -or $imports.architecture -ne 'x86' -or
     $imports.inventories -notcontains '5.1.2600.txt' -or $imports.inventories -notcontains '6.1.7600.txt') {
@@ -44,7 +45,7 @@ $archives = @($archive)
 if ($SourcePackage) {
     $source = Join-Path $stage 'source/ttpcomm'
     New-Item -ItemType Directory -Path $source -Force | Out-Null
-    foreach ($entry in @('CMakeLists.txt','build.ps1','README.md','.gitignore','cmake','src','include','abi','docs','licenses','.github')) {
+    foreach ($entry in @('CMakeLists.txt','build.ps1','README.md','.gitignore','cmake','src','include','sdk','abi','docs','licenses','.github')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $entry) -Destination $source -Recurse
     }
     $PackageVersion | Set-Content -LiteralPath (Join-Path $source 'BUILD_VERSION') -Encoding ASCII

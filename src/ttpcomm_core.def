@@ -67,3 +67,4 @@ EXPORTS
   CoolSB_SetMinThumbSize @204 NONAME
   CoolSB_SetSize @205 NONAME
   CoolSB_SetStyle @206 NONAME
+  ttpcomm_query_extension @500

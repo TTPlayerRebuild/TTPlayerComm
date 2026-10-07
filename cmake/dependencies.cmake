@@ -9,7 +9,8 @@ foreach(_dependency zlib id3 kissfft ssrc mpeg dream detours)
   endif()
 endforeach()
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
-  "${CMAKE_CURRENT_LIST_DIR}/adapt_id3.py" "${CMAKE_CURRENT_LIST_DIR}/adapt_fft.py")
+  "${CMAKE_CURRENT_LIST_DIR}/adapt_id3.py" "${CMAKE_CURRENT_LIST_DIR}/adapt_fft.py"
+  "${CMAKE_CURRENT_SOURCE_DIR}/sdk/include/ttpcomm/genres.h")
 FetchContent_Declare(ttpcomm_zlib_source
   URL https://codeload.github.com/madler/zlib/zip/refs/tags/v1.3.2
   URL_HASH SHA256=31fd9fee98812abcf147d0e103bc4d2f983c35a8d7a807a328a299f3a74e0050

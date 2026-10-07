@@ -620,5 +620,14 @@
     "5: registered callbacks receive (1, nullptr) and termination status 3; absent/reentrant callbacks retain modern fail-fast, legacy systems terminate directly without the original error dialog or DLL cleanup",
     "80-83: some complete raw Deflate streams return STREAM_END where zlib 1.1.4 waits for lookahead despite complete output"
   ],
-  "release_output": "ttpcomm.dll"
+  "release_output": "ttpcomm.dll",
+  "extensions": [
+    {
+      "ordinal": 500,
+      "name": "ttpcomm_query_extension",
+      "calling_convention": "cdecl",
+      "status": "implemented",
+      "implementation": "ttpcomm_query_extension"
+    }
+  ]
 }

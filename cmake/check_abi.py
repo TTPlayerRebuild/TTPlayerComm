@@ -38,15 +38,18 @@ def main():
     ap.add_argument('--report',type=Path);ap.add_argument('--require-complete',action='store_true')
     args=ap.parse_args();manifest=json.loads(args.manifest.read_text(encoding='utf-8'))
     expected={item['ordinal']:item for item in manifest['exports'] if item['status']!='pending'}
+    extensions={item['ordinal']:item for item in manifest.get('extensions',[])}
     actual=inspect_exports(args.dll)
-    if actual.keys()!=expected.keys():raise ValueError(f'Export mismatch: missing {expected.keys()-actual.keys()}, unexpected {actual.keys()-expected.keys()}')
-    for ordinal,item in expected.items():
+    required=expected | extensions
+    if actual.keys()!=required.keys():raise ValueError(f'Export mismatch: missing {required.keys()-actual.keys()}, unexpected {actual.keys()-required.keys()}')
+    for ordinal,item in required.items():
         if actual[ordinal]['name']!=item['name']:raise ValueError(f'Wrong named/NONAME export at {ordinal}')
     if actual[12]['rva']!=actual[78]['rva']:raise ValueError('12/78 must alias the same free implementation')
-    if args.require_complete and (not manifest['complete'] or len(actual)!=67):raise ValueError('This library is not a complete replacement')
+    if args.require_complete and (not manifest['complete'] or len(expected)!=67):raise ValueError('This library is not a complete replacement')
     report={'dll':args.dll.name,'sha256':hashlib.sha256(args.dll.read_bytes()).hexdigest(),
-        'complete':manifest['complete'],'exports':actual,'pending':[i['ordinal'] for i in manifest['exports'] if i['status']=='pending']}
+        'complete':manifest['complete'],'legacy_export_count':len(expected),'extension_export_count':len(extensions),
+        'exports':actual,'pending':[i['ordinal'] for i in manifest['exports'] if i['status']=='pending']}
     if args.report:args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
-    print(f'ABI check passed: {len(actual)}/67 exports; complete={manifest["complete"]}')
+    print(f'ABI check passed: {len(expected)}/67 legacy exports + {len(extensions)} extensions; complete={manifest["complete"]}')
 
 if __name__=='__main__':main()

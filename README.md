@@ -77,3 +77,17 @@ Windows 10 使用 Windows 11 代测，没有独立 Windows 10 实测结果。
 独立 Actions 的 **Release a Version** 在编译前选择日期/pN 版本，不运行私有测试。
 先发布 TTPlayerComm 后，可在播放器 Actions 的 `ttpcomm_version` 中填写该版本或 `latest`，
 经校验后将 DLL 合入播放器包。留空时不改变既有包内容。
+
+## 共享 SDK（2026-10-08）
+
+播放器的公共调用封装、PCM 转换、ID3 帧与封面解析、ZIP 结构、Base64/UTF-8 和流派表已收敛到 `sdk`。
+播放器持有 `third_party/ttpcomm-sdk` 固定快照，可以独立构建；CMake 检查快照摘要，更新方式：
+
+```powershell
+python cmake/sync_sdk.py ../rebuild/third_party/ttpcomm-sdk
+python cmake/sync_sdk.py ../rebuild/third_party/ttpcomm-sdk --check
+```
+
+C++ 辅助代码在宿主内编译，不跨 DLL 传递 STL 对象；原版 DLL 仍然可用。
+新增 `ttpcomm_query_extension`（ordinal 500）只返回版本化能力信息，目前声明独立 ReplayGain 实例可并行。
+详细迁移边界、保留差异和测试结果见实施记录第 9 节。

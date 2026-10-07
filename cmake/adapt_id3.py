@@ -172,8 +172,13 @@ genre_source = (source / 'src/genre.dat.in').read_text(encoding='utf-8')
 genres = [line for line in genre_source.splitlines() if re.match('[a-zA-Z]', line)]
 if len(genres) != 192:
     raise RuntimeError('Unexpected upstream genre table')
-genres = genres[:148]
-for index, value in {85: 'Bebob', 123: 'A Cappella', 129: 'Hardcore', 133: 'Negerpunk', 146: 'JPop'}.items():
+# Single source shared with the player SDK; preserve the DLL's historic spelling.
+genres = re.findall(r'"([^"\n]+)"', (Path(__file__).resolve().parents[1] /
+    'sdk/include/ttpcomm/genres.h').read_text(encoding='utf-8'))
+if len(genres) != 148:
+    raise RuntimeError('Unexpected SDK genre table')
+for index, value in {40: 'AlternRock', 67: 'Psychedelic', 81: 'Folk/Rock',
+                     84: 'Fast-Fusion', 123: 'A Cappella', 146: 'JPop'}.items():
     genres[index] = value
 data = genre_source[:genre_source.index('*/') + 2] + '\n/* TTPlayer compatibility table generated at build time. */\n'
 for i, value in enumerate(genres):

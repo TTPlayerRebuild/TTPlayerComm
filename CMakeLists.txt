@@ -13,14 +13,14 @@ include(cmake/dependencies.cmake)
 
 # All 67 exports are recovered. Keep the CMake target name for build continuity;
 # the release filename and PE module identity now match the original host ABI.
-add_library(ttpcomm_core SHARED src/runtime.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
+add_library(ttpcomm_core SHARED src/runtime.cpp src/extensions.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
   src/resampler.cpp src/replaygain.cpp src/equalizer.cpp src/surround.cpp src/dts.cpp src/spectrum.cpp src/abi_checks.cpp
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
 target_compile_definitions(ttpcomm_core PRIVATE UNICODE _UNICODE NOMINMAX
   WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0501 _CRT_SECURE_NO_WARNINGS)
 target_compile_options(ttpcomm_core PRIVATE /W4 /permissive- /EHsc /utf-8 /fp:precise)
-target_include_directories(ttpcomm_core PRIVATE include "${dream_dir}")
+target_include_directories(ttpcomm_core PRIVATE include sdk/include "${dream_dir}")
 set_source_files_properties(src/dream.cpp PROPERTIES COMPILE_OPTIONS "/arch:IA32")
 # Only the terminal /GS reporter must not recursively instrument itself.
 set_source_files_properties(src/security.cpp PROPERTIES COMPILE_OPTIONS "/GS-")
