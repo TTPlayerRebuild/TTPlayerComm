@@ -486,7 +486,7 @@
       "name": "",
       "reference_address": "0x60001a20",
       "reference_function": "FUN_60001a20",
-      "status": "implemented_with_numeric_difference",
+      "status": "implemented",
       "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
       "implementation": "ttp_spectrum_create"
     },
