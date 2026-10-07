@@ -1,0 +1,75 @@
+Audio super equalizer and sampling rate converter are based on:
+::
+
+    Shibatch Super Equalizer (SuperEQ) and Sampling Rate Converter (SSRC)
+    Copyright (C) 2001-2003 Naoki Shibata
+    http://shibatch.sourceforge.net/
+    Both are distributed under terms of GNU LGPL (except FFT part).
+
+    Some changes are:
+    Copyright (C) 2001-2003, Peter Pawlowski
+    http://www.foobar2000.org
+    (with addition of PFC library)
+
+    Other changes are:
+    Copyright (C) 2003, Klaus Post
+
+PFC class library (portion of Foobar2000 0.7 SDK)
+::
+
+    Copyright (C) 2001-2003, Peter Pawlowski
+    All rights reserved.
+
+    Used Foobar2000 SDK was distributed under following conditions:
+
+    Redistribution and use in source and binary forms, with or without
+    modification, are permitted provided that the following conditions
+    are met: Redistributions of source code must retain the above copyright
+    notice, this list of conditions and the following disclaimer.
+    Redistributions in binary form must reproduce the above copyright
+    notice, this list of conditions and the following disclaimer in the
+    documentation and/or other materials provided with the distribution.
+    Neither the name of the author nor the names of its contributors may
+    be used to endorse or promote products derived from this software
+    without specific prior written permission.
+    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+    "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+    TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+    PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE REGENTS OR
+    CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+    EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+    PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+    PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+    OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+    NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+FFT part of SuperRQ and SSRC is based on General Purpose FFT package
+::
+
+    http://momonga.t.u-tokyo.ac.jp/~ooura/fft.html
+      It is originally distributed under following license terms:
+
+    Copyright (C) 1996-2001 Takuya OOURA
+    (Email: ooura@kurims.kyoto-u.ac.jp or ooura@mmm.t.u-tokyo.ac.jp)
+
+    You may use, copy, modify and distribute this code for any purpose
+    (include commercial use) and without fee.
+    Please refer to this package when you modify this code.
+
+/******************************************************
+  A fast and high quality sampling rate converter SSRC
+                                           written by Naoki Shibata
+
+
+Homepage : http://shibatch.sourceforge.net/
+e-mail   : shibatch@users.sourceforge.net
+
+Some changes are:
+
+Copyright (c) 2001-2003, Peter Pawlowski
+All rights reserved.
+
+*******************************************************/
+
+

@@ -1,0 +1,69 @@
+LIBRARY ttpcomm
+EXPORTS
+  ttpcomm_getversion @1
+  _resetstkoflw=ttp_resetstkoflw @2
+  srand48=ttp_srand48 @3
+  lrand48=ttp_lrand48 @4
+  _set_security_error_handler=ttp_set_security_error_handler @5
+  ttp_decoder_sample_bits @10 NONAME
+  ttp_decoder_create @11 NONAME
+  ttp_free @12 NONAME
+  ttp_decoder_process @13 NONAME
+  ttp_decoder_reset @14 NONAME
+  id3_tag_new @50 NONAME
+  id3_tag_delete @51 NONAME
+  id3_tag_query @52 NONAME
+  id3_tag_parse @53 NONAME
+  id3_tag_render @54 NONAME
+  id3_tag_attachframe @55 NONAME
+  id3_tag_detachframe @56 NONAME
+  id3_tag_setlength @57 NONAME
+  id3_frame_new @58 NONAME
+  id3_frame_delete @59 NONAME
+  id3_frame_field @60 NONAME
+  id3_ucs4_latin1duplicate @61 NONAME
+  id3_ucs4_utf16duplicate @62 NONAME
+  id3_ucs4_utf8duplicate @63 NONAME
+  id3_utf16_ucs4duplicate @64 NONAME
+  id3_utf8_ucs4duplicate @65 NONAME
+  id3_latin1_ucs4duplicate @66 NONAME
+  id3_field_type @67 NONAME
+  id3_field_getlatin1 @68 NONAME
+  id3_field_getfullstring @69 NONAME
+  id3_field_getstring @70 NONAME
+  id3_field_getstrings @71 NONAME
+  id3_field_setfullstring @72 NONAME
+  id3_field_setlatin1 @73 NONAME
+  id3_field_setstring @74 NONAME
+  id3_field_setstrings @75 NONAME
+  id3_field_setlanguage @76 NONAME
+  ttp_malloc @77 NONAME
+  id3_free=ttp_free @78 NONAME
+  id3_field_setbinarydata @79 NONAME
+  ttp_inflate_init @80 NONAME
+  ttp_inflate @81 NONAME
+  ttp_inflate_end @82 NONAME
+  ttp_uncompress @83 NONAME
+  ttp_dream_create @90 NONAME
+  ttp_dream_resize @91 NONAME
+  ttp_dream_process @92 NONAME
+  ttp_dream_destroy @93 NONAME
+  ttp_replaygain_supports_rate @100 NONAME
+  ttp_replaygain_create @101 NONAME
+  ttp_surround_create @104 NONAME
+  ttp_spectrum_create @105 NONAME
+  ttp_dts_probe @106 NONAME
+  ttp_digest_hex @400 NONAME
+  ttp_digest_raw @401 NONAME
+    ttp_equalizer_create @103 NONAME
+    ttp_machine_mac @300 NONAME
+    ttp_machine_disk @301 NONAME
+    ttp_machine_token @302 NONAME
+    ttp_resampler_create @102 NONAME
+  ttp_coolsb_init_app @200 NONAME
+  ttp_coolsb_uninit_app @201 NONAME
+  InitializeCoolSB @202 NONAME
+  UninitializeCoolSB @203 NONAME
+  CoolSB_SetMinThumbSize @204 NONAME
+  CoolSB_SetSize @205 NONAME
+  CoolSB_SetStyle @206 NONAME

@@ -1,0 +1,86 @@
+Goom 1.9.3 (Dream reconstruction dependency)
+
+Source: https://downloads.sourceforge.net/project/goom/OldFiles/wgoom-1.9.3-src.zip
+SHA256: 7989966991eb6adeabfa87b2f07e81e47b3eb52e700cd4313ab8e4b429f6609e
+
+
+COPYING
+This program is under the LGPL.
+You can find the terms of this licence somewhere on the internet.
+(for exemple : try http://www.google.com, and search LGPL).
+
+:)
+
+AUTHORS
+What a GOOM!
+============
+
+Copyright (c) 2000-2001, Jean-Christophe Hoelt <jeko@free.fr>
+Programmer and Software Designer at iOS software.
+
+but also :
+
+Fred for the Win32 port.
+Gyom for the MacOSX port.
+
+IFS copyright/permission notice:
+/* -*- Mode: C; tab-width: 4 -*- */
+/* ifs --- modified iterated functions system */
+
+#if !defined( lint ) && !defined( SABER )
+static const char sccsid[] = "@(#)ifs.c	5.00 2002/04/11 baffe";
+#endif
+
+/*-
+ * Copyright (c) 1997 by Massimino Pascal <Pascal.Massimon@ens.fr>
+ *
+ * Permission to use, copy, modify, and distribute this software and its
+ * documentation for any purpose and without fee is hereby granted,
+ * provided that the above copyright notice appear in all copies and that
+ * both that copyright notice and this permission notice appear in
+ * supporting documentation.
+ *
+ * This file is provided AS IS with no warranties of any kind.  The author
+ * shall have no liability with respect to the infringement of copyrights,
+ * trade secrets or any patents by this file or any part thereof.  In no
+ * event will the author be liable for any lost revenue or profits or
+ * other special, indirect and consequential damages.
+ *
+ * If this mode is weird and you have an old MetroX server, it is buggy.
+ * There is a free SuSE-enhanced MetroX X server that is fine.
+ *
+ * When shown ifs, Diana Rose (4 years old) said, "It looks like dancing."
+ *
+ * Revision History:
+ * 11-Apr-2002: Make ifs.c system-indendant. (ifs.h added)
+ * 01-Nov-2000: Allocation checks
+ * 10-May-1997: jwz@jwz.org: turned into a standalone program.
+ *              Made it render into an offscreen bitmap and then copy
+ *              that onto the screen, to reduce flicker.
+ */
+
+//#ifdef STANDALONE
+
+
+TTPlayer adaptations: per-instance filter/IFS buffers; signed short random table; original arithmetic/rounding and table boundary semantics; checked lifetimes and portable saturated blending. See cmake/adapt_dream.py and src/dream.cpp. The original COPYING identifies LGPL without a version; the LGPL 2.0 text is retained alongside the source notice. No DLL resource embeds these texts.
+
+lines.c original notice:
+/*
+ *  lines.c
+ *  iTunesXPlugIn
+ *
+ *  Created by guillaum on Tue Aug 14 2001.
+ *  Copyright (c) 2001 __CompanyName__. All rights reserved.
+ *
+ */
+
+
+lines.h original notice:
+/*
+ *  lines.h
+ *  iGoom
+ *
+ *  Created by guillaum on Tue Aug 14 2001.
+ *  Copyright (c) 2001 ios. All rights reserved.
+ */
+

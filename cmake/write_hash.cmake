@@ -1,0 +1,7 @@
+if(NOT DEFINED INPUT OR NOT EXISTS "${INPUT}")
+  message(FATAL_ERROR "Expected a built DLL in INPUT")
+endif()
+file(SHA256 "${INPUT}" checksum)
+get_filename_component(folder "${INPUT}" DIRECTORY)
+get_filename_component(name "${INPUT}" NAME)
+file(WRITE "${folder}/SHA256SUMS.txt" "${checksum}  ${name}\n")

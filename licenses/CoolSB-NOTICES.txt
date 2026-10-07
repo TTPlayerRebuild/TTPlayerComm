@@ -1,0 +1,19 @@
+Cool Scrollbar Library 1.2 by James Brown (Catch22)
+https://www.catch22.net/tuts/win32/custom-scrollbars/
+Source mirror pinned in cmake/dependencies.cmake.
+
+Cool Scrollbar Library Version 1.2
+
+	Module: coolsblib.c
+	Copyright (c) J Brown 2001
+
+	This code is freeware, however, you may not publish
+	this code elsewhere or charge any money for it. This code
+	is supplied as-is. I make no guarantees about the suitability
+	of this code - use at your own risk.
+	
+	It would be nice if you credited me, in the event
+	that you use this code in a product.
+
+The repository does not vendor this source; it is downloaded into the build tree.
+TTPlayer-specific adaptations are applied only to the build-tree copy.

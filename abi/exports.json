@@ -1,0 +1,622 @@
+{
+  "reference_sha256": "e349ef73e8a1d35b2c5debd2ddaeb5cc2513a90647766b7339d2605b34483b33",
+  "architecture": "x86",
+  "required_version": "0x00050700",
+  "complete": true,
+  "exports": [
+    {
+      "ordinal": 1,
+      "name": "ttpcomm_getversion",
+      "reference_address": "0x60006010",
+      "reference_function": "ttpcomm_getversion",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttpcomm_getversion"
+    },
+    {
+      "ordinal": 2,
+      "name": "_resetstkoflw",
+      "reference_address": "0x6001d748",
+      "reference_function": "_resetstkoflw",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_resetstkoflw"
+    },
+    {
+      "ordinal": 3,
+      "name": "srand48",
+      "reference_address": "0x60002980",
+      "reference_function": "srand48",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_srand48"
+    },
+    {
+      "ordinal": 4,
+      "name": "lrand48",
+      "reference_address": "0x600029e0",
+      "reference_function": "lrand48",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_lrand48"
+    },
+    {
+      "ordinal": 5,
+      "name": "_set_security_error_handler",
+      "reference_address": "0x60010eb8",
+      "reference_function": "set_security_error_handler",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_set_security_error_handler"
+    },
+    {
+      "ordinal": 10,
+      "name": "",
+      "reference_address": "0x6001151e",
+      "reference_function": "FUN_6001151e",
+      "status": "implemented",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "ttp_decoder_sample_bits"
+    },
+    {
+      "ordinal": 11,
+      "name": "",
+      "reference_address": "0x60011522",
+      "reference_function": "FUN_60011522",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_decoder_create"
+    },
+    {
+      "ordinal": 12,
+      "name": "",
+      "reference_address": "0x600212e8",
+      "reference_function": "FUN_600212e8",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_free"
+    },
+    {
+      "ordinal": 13,
+      "name": "",
+      "reference_address": "0x600115b5",
+      "reference_function": "FUN_600115b5",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_decoder_process"
+    },
+    {
+      "ordinal": 14,
+      "name": "",
+      "reference_address": "0x60011598",
+      "reference_function": "FUN_60011598",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_decoder_reset"
+    },
+    {
+      "ordinal": 50,
+      "name": "",
+      "reference_address": "0x6002260d",
+      "reference_function": "FUN_6002260d",
+      "status": "implemented",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "id3_tag_new"
+    },
+    {
+      "ordinal": 51,
+      "name": "",
+      "reference_address": "0x60022be4",
+      "reference_function": "FUN_60022be4",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_delete"
+    },
+    {
+      "ordinal": 52,
+      "name": "",
+      "reference_address": "0x60022851",
+      "reference_function": "FUN_60022851",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_query"
+    },
+    {
+      "ordinal": 53,
+      "name": "",
+      "reference_address": "0x60022f27",
+      "reference_function": "FUN_60022f27",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_parse"
+    },
+    {
+      "ordinal": 54,
+      "name": "",
+      "reference_address": "0x600228eb",
+      "reference_function": "FUN_600228eb",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_render"
+    },
+    {
+      "ordinal": 55,
+      "name": "",
+      "reference_address": "0x6002267d",
+      "reference_function": "FUN_6002267d",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_attachframe"
+    },
+    {
+      "ordinal": 56,
+      "name": "",
+      "reference_address": "0x600226bc",
+      "reference_function": "FUN_600226bc",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_detachframe"
+    },
+    {
+      "ordinal": 57,
+      "name": "",
+      "reference_address": "0x6002263f",
+      "reference_function": "FUN_6002263f",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_tag_setlength"
+    },
+    {
+      "ordinal": 58,
+      "name": "",
+      "reference_address": "0x60021b44",
+      "reference_function": "FUN_60021b44",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_frame_new"
+    },
+    {
+      "ordinal": 59,
+      "name": "",
+      "reference_address": "0x60021c2e",
+      "reference_function": "FUN_60021c2e",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_frame_delete"
+    },
+    {
+      "ordinal": 60,
+      "name": "",
+      "reference_address": "0x60021c82",
+      "reference_function": "FUN_60021c82",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_frame_field"
+    },
+    {
+      "ordinal": 61,
+      "name": "",
+      "reference_address": "0x6002303c",
+      "reference_function": "FUN_6002303c",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_ucs4_latin1duplicate"
+    },
+    {
+      "ordinal": 62,
+      "name": "",
+      "reference_address": "0x60023065",
+      "reference_function": "FUN_60023065",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_ucs4_utf16duplicate"
+    },
+    {
+      "ordinal": 63,
+      "name": "",
+      "reference_address": "0x60023090",
+      "reference_function": "FUN_60023090",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_ucs4_utf8duplicate"
+    },
+    {
+      "ordinal": 64,
+      "name": "",
+      "reference_address": "0x60023408",
+      "reference_function": "FUN_60023408",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_utf16_ucs4duplicate"
+    },
+    {
+      "ordinal": 65,
+      "name": "",
+      "reference_address": "0x60023b07",
+      "reference_function": "FUN_60023b07",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_utf8_ucs4duplicate"
+    },
+    {
+      "ordinal": 66,
+      "name": "",
+      "reference_address": "0x600225dd",
+      "reference_function": "FUN_600225dd",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_latin1_ucs4duplicate"
+    },
+    {
+      "ordinal": 67,
+      "name": "",
+      "reference_address": "0x60021411",
+      "reference_function": "FUN_60021411",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_type"
+    },
+    {
+      "ordinal": 68,
+      "name": "",
+      "reference_address": "0x60021a4b",
+      "reference_function": "FUN_60021a4b",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_getlatin1"
+    },
+    {
+      "ordinal": 69,
+      "name": "",
+      "reference_address": "0x60021a7d",
+      "reference_function": "FUN_60021a7d",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_getfullstring"
+    },
+    {
+      "ordinal": 70,
+      "name": "",
+      "reference_address": "0x60021a64",
+      "reference_function": "FUN_60021a64",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_getstring"
+    },
+    {
+      "ordinal": 71,
+      "name": "",
+      "reference_address": "0x60021a96",
+      "reference_function": "FUN_60021a96",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_getstrings"
+    },
+    {
+      "ordinal": 72,
+      "name": "",
+      "reference_address": "0x6002184f",
+      "reference_function": "FUN_6002184f",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setfullstring"
+    },
+    {
+      "ordinal": 73,
+      "name": "",
+      "reference_address": "0x600217e5",
+      "reference_function": "FUN_600217e5",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setlatin1"
+    },
+    {
+      "ordinal": 74,
+      "name": "",
+      "reference_address": "0x6002182c",
+      "reference_function": "FUN_6002182c",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setstring"
+    },
+    {
+      "ordinal": 75,
+      "name": "",
+      "reference_address": "0x60021872",
+      "reference_function": "FUN_60021872",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setstrings"
+    },
+    {
+      "ordinal": 76,
+      "name": "",
+      "reference_address": "0x60021975",
+      "reference_function": "FUN_60021975",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setlanguage"
+    },
+    {
+      "ordinal": 77,
+      "name": "",
+      "reference_address": "0x600212e2",
+      "reference_function": "malloc",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_malloc"
+    },
+    {
+      "ordinal": 78,
+      "name": "",
+      "reference_address": "0x600212e8",
+      "reference_function": "FUN_600212e8",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_free"
+    },
+    {
+      "ordinal": 79,
+      "name": "",
+      "reference_address": "0x600219fa",
+      "reference_function": "FUN_600219fa",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "id3_field_setbinarydata"
+    },
+    {
+      "ordinal": 80,
+      "name": "",
+      "reference_address": "0x60018b03",
+      "reference_function": "FUN_60018b03",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_inflate_init"
+    },
+    {
+      "ordinal": 81,
+      "name": "",
+      "reference_address": "0x60018bff",
+      "reference_function": "FUN_60018bff",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_inflate"
+    },
+    {
+      "ordinal": 82,
+      "name": "",
+      "reference_address": "0x60018ac5",
+      "reference_function": "FUN_60018ac5",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_inflate_end"
+    },
+    {
+      "ordinal": 83,
+      "name": "",
+      "reference_address": "0x60018f67",
+      "reference_function": "FUN_60018f67",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_uncompress"
+    },
+    {
+      "ordinal": 90,
+      "name": "",
+      "reference_address": "0x6001d85e",
+      "reference_function": "FUN_6001d85e",
+      "status": "implemented",
+      "calling_convention": "fastcall",
+      "implementation": "ttp_dream_create"
+    },
+    {
+      "ordinal": 91,
+      "name": "",
+      "reference_address": "0x6001d9c4",
+      "reference_function": "FUN_6001d9c4",
+      "status": "implemented",
+      "calling_convention": "fastcall",
+      "implementation": "ttp_dream_resize"
+    },
+    {
+      "ordinal": 92,
+      "name": "",
+      "reference_address": "0x6001dcff",
+      "reference_function": "FUN_6001dcff",
+      "status": "implemented",
+      "calling_convention": "fastcall",
+      "implementation": "ttp_dream_process"
+    },
+    {
+      "ordinal": 93,
+      "name": "",
+      "reference_address": "0x6001daad",
+      "reference_function": "FUN_6001daad",
+      "status": "implemented",
+      "calling_convention": "fastcall",
+      "implementation": "ttp_dream_destroy"
+    },
+    {
+      "ordinal": 100,
+      "name": "",
+      "reference_address": "0x60005010",
+      "reference_function": "FUN_60005010",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_replaygain_supports_rate"
+    },
+    {
+      "ordinal": 101,
+      "name": "",
+      "reference_address": "0x60005530",
+      "reference_function": "FUN_60005530",
+      "status": "implemented",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "ttp_replaygain_create"
+    },
+    {
+      "ordinal": 102,
+      "name": "",
+      "reference_address": "0x60005800",
+      "reference_function": "FUN_60005800",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_resampler_create"
+    },
+    {
+      "ordinal": 103,
+      "name": "",
+      "reference_address": "0x60006930",
+      "reference_function": "FUN_60006930",
+      "status": "implemented",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "ttp_equalizer_create"
+    },
+    {
+      "ordinal": 104,
+      "name": "",
+      "reference_address": "0x60005ff0",
+      "reference_function": "FUN_60005ff0",
+      "status": "implemented",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "ttp_surround_create"
+    },
+    {
+      "ordinal": 105,
+      "name": "",
+      "reference_address": "0x60001a20",
+      "reference_function": "FUN_60001a20",
+      "status": "implemented_with_numeric_difference",
+      "calling_convention": "cdecl (no arguments; stack-compatible with stdcall callers)",
+      "implementation": "ttp_spectrum_create"
+    },
+    {
+      "ordinal": 106,
+      "name": "",
+      "reference_address": "0x600014f0",
+      "reference_function": "FUN_600014f0",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_dts_probe"
+    },
+    {
+      "ordinal": 200,
+      "name": "",
+      "reference_address": "0x6001b290",
+      "reference_function": "FUN_6001b290",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "ttp_coolsb_init_app"
+    },
+    {
+      "ordinal": 201,
+      "name": "",
+      "reference_address": "0x6001b36a",
+      "reference_function": "FUN_6001b36a",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "ttp_coolsb_uninit_app"
+    },
+    {
+      "ordinal": 202,
+      "name": "",
+      "reference_address": "0x6001ae0e",
+      "reference_function": "FUN_6001ae0e",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "InitializeCoolSB"
+    },
+    {
+      "ordinal": 203,
+      "name": "",
+      "reference_address": "0x6001ac34",
+      "reference_function": "FUN_6001ac34",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "UninitializeCoolSB"
+    },
+    {
+      "ordinal": 204,
+      "name": "",
+      "reference_address": "0x6001ad94",
+      "reference_function": "FUN_6001ad94",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "CoolSB_SetMinThumbSize"
+    },
+    {
+      "ordinal": 205,
+      "name": "",
+      "reference_address": "0x6001ac88",
+      "reference_function": "FUN_6001ac88",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "CoolSB_SetSize"
+    },
+    {
+      "ordinal": 206,
+      "name": "",
+      "reference_address": "0x6001ad22",
+      "reference_function": "FUN_6001ad22",
+      "status": "implemented",
+      "calling_convention": "stdcall",
+      "implementation": "CoolSB_SetStyle"
+    },
+    {
+      "ordinal": 300,
+      "name": "",
+      "reference_address": "0x60001df0",
+      "reference_function": "FUN_60001df0",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_machine_mac"
+    },
+    {
+      "ordinal": 301,
+      "name": "",
+      "reference_address": "0x60002540",
+      "reference_function": "FUN_60002540",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_machine_disk"
+    },
+    {
+      "ordinal": 302,
+      "name": "",
+      "reference_address": "0x600027a0",
+      "reference_function": "FUN_600027a0",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_machine_token"
+    },
+    {
+      "ordinal": 400,
+      "name": "",
+      "reference_address": "0x60003600",
+      "reference_function": "FUN_60003600",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_digest_hex"
+    },
+    {
+      "ordinal": 401,
+      "name": "",
+      "reference_address": "0x60003580",
+      "reference_function": "FUN_60003580",
+      "status": "implemented",
+      "calling_convention": "cdecl",
+      "implementation": "ttp_digest_raw"
+    }
+  ],
+  "known_differences": [
+    "105: measured integer spectrum differences up to one unit; not bit-exact",
+    "106: safe bounded parsing supports unaligned little-endian frames rejected by the original",
+    "80-83: zlib 1.3.2 backend; legacy init window constraints retained, malformed-stream parity not exhaustive",
+    "90-93: reference random-table tail is uninitialized; reconstruction initializes it to zero; pixel tests normalize only that reference slot",
+    "102: reference SSRC downsample history tail is uninitialized; reconstruction zeros it; differential tests normalize that reference sample",
+    "11-14: oversized and truncated ADU packets are rejected instead of reading beyond the packet",
+    "200-206: invalid HWND/allocation failures are checked; invalid ordinal 204 bar is rejected instead of writing through an invalid pointer",
+    "300-302: bounded device parsing and corrected output-capacity checks"
+  ],
+  "release_output": "ttpcomm.dll"
+}

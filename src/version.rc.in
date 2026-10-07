@@ -1,0 +1,27 @@
+#include <winver.h>
+1 VERSIONINFO
+FILEVERSION @TTPCOMM_FIXED_VERSION@
+PRODUCTVERSION @TTPCOMM_FIXED_VERSION@
+FILEFLAGSMASK 0x3fL
+FILEFLAGS 0
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_DLL
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName", "Sonic853\0"
+      VALUE "FileDescription", "TTPlayer common library reconstruction\0"
+      VALUE "FileVersion", "@TTPCOMM_BUILD_VERSION@\0"
+      VALUE "InternalName", "ttpcomm\0"
+      VALUE "OriginalFilename", "ttpcomm.dll\0"
+      VALUE "ProductName", "TTPlayer Rebuild Common\0"
+      VALUE "ProductVersion", "@TTPCOMM_BUILD_VERSION@\0"
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x0409, 1200
+  END
+END
