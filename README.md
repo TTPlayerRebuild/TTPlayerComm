@@ -76,7 +76,7 @@ Windows 10 使用 Windows 11 代测，没有独立 Windows 10 实测结果。
 
 独立 Actions 的 **Release a Version** 在编译前选择日期/pN 版本，不运行私有测试。
 先发布 TTPlayerComm 后，可在播放器 Actions 的 `ttpcomm_version` 中填写该版本或 `latest`，
-经校验后将 DLL 合入播放器包。留空时不改变既有包内容。
+经校验后将 DLL 合入播放器包。播放器现在默认使用 `latest`，且必须包含带运行 ABI 1 的核心。
 
 ## 共享 SDK（2026-10-08）
 
@@ -88,6 +88,8 @@ python cmake/sync_sdk.py ../rebuild/third_party/ttpcomm-sdk
 python cmake/sync_sdk.py ../rebuild/third_party/ttpcomm-sdk --check
 ```
 
-C++ 辅助代码在宿主内编译，不跨 DLL 传递 STL 对象；原版 DLL 仍然可用。
+C++ 小型辅助代码仍在宿主内编译，不跨 DLL 传递 STL 对象。PCM、最终量化、标准标签/封面和压缩帧解析已迁入 DLL；新版重建宿主不再接受原版或缺少运行接口的旧 DLL。
 新增 `ttpcomm_query_extension`（ordinal 500）只返回版本化能力信息，目前声明独立 ReplayGain 实例可并行。
 详细迁移边界、保留差异和测试结果见实施记录第 9 节。
+
+新增 `ttpcomm_query_runtime`（ordinal 501）提供 ABI 1 的压缩、PCM、标签函数表。旧 67 个导出保持兼容，新核心仍可供原版播放器使用。首次升级手动替换完整播放器包，接口与验证见 [运行接口 ABI 1](docs/RUNTIME_ABI.md)。

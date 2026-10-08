@@ -26,8 +26,8 @@ Assert-TtpCommFileVersion $dll $PackageVersion
 $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash.ToLowerInvariant()
 $abi = Get-Content -LiteralPath (Join-Path $output 'abi-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $imports = Get-Content -LiteralPath (Join-Path $output 'legacy-imports.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $abi.complete -or $abi.legacy_export_count -ne 67 -or $abi.extension_export_count -ne 1 -or
-    @($abi.exports.PSObject.Properties).Count -ne 68 -or
+if (-not $abi.complete -or $abi.legacy_export_count -ne 67 -or $abi.extension_export_count -ne 2 -or
+    @($abi.exports.PSObject.Properties).Count -ne 69 -or
     $abi.sha256 -cne $hash -or $imports.sha256 -cne $hash -or
     $imports.minimum_subsystem -ne '5.01' -or $imports.architecture -ne 'x86' -or
     $imports.inventories -notcontains '5.1.2600.txt' -or $imports.inventories -notcontains '6.1.7600.txt') {

@@ -13,7 +13,7 @@ include(cmake/dependencies.cmake)
 
 # All 67 exports are recovered. Keep the CMake target name for build continuity;
 # the release filename and PE module identity now match the original host ABI.
-add_library(ttpcomm_core SHARED src/runtime.cpp src/extensions.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
+add_library(ttpcomm_core SHARED src/runtime.cpp src/extensions.cpp src/runtime_services.cpp src/runtime_pcm.cpp src/runtime_quantizer.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
   src/resampler.cpp src/replaygain.cpp src/equalizer.cpp src/surround.cpp src/dts.cpp src/spectrum.cpp src/abi_checks.cpp
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
@@ -22,6 +22,9 @@ target_compile_definitions(ttpcomm_core PRIVATE UNICODE _UNICODE NOMINMAX
 target_compile_options(ttpcomm_core PRIVATE /W4 /permissive- /EHsc /utf-8 /fp:precise)
 target_include_directories(ttpcomm_core PRIVATE include sdk/include "${dream_dir}")
 set_source_files_properties(src/dream.cpp PROPERTIES COMPILE_OPTIONS "/arch:IA32")
+# Preserve the host's hot PCM compilation policy, including the math intrinsic
+# path used by gain/quantization. Cold tag/compression wrappers remain /O1.
+set_source_files_properties(src/runtime_pcm.cpp src/runtime_quantizer.cpp PROPERTIES COMPILE_OPTIONS "/O2;/Ob2")
 # Only the terminal /GS reporter must not recursively instrument itself.
 set_source_files_properties(src/security.cpp PROPERTIES COMPILE_OPTIONS "/GS-")
 target_link_options(ttpcomm_core PRIVATE "/MAP:$<TARGET_FILE_DIR:ttpcomm_core>/ttpcomm.map")
