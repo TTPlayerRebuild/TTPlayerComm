@@ -69,3 +69,4 @@ EXPORTS
   CoolSB_SetStyle @206 NONAME
   ttpcomm_query_extension @500
   ttpcomm_query_runtime @501
+  ttpcomm_query_archive @502

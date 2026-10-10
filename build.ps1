@@ -26,8 +26,8 @@ Assert-TtpCommFileVersion $dll $PackageVersion
 $hash = (Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash.ToLowerInvariant()
 $abi = Get-Content -LiteralPath (Join-Path $output 'abi-report.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $imports = Get-Content -LiteralPath (Join-Path $output 'legacy-imports.json') -Raw -Encoding UTF8 | ConvertFrom-Json
-if (-not $abi.complete -or $abi.legacy_export_count -ne 67 -or $abi.extension_export_count -ne 2 -or
-    @($abi.exports.PSObject.Properties).Count -ne 69 -or
+if (-not $abi.complete -or $abi.legacy_export_count -ne 67 -or $abi.extension_export_count -ne 3 -or
+    @($abi.exports.PSObject.Properties).Count -ne 70 -or
     $abi.sha256 -cne $hash -or $imports.sha256 -cne $hash -or
     $imports.minimum_subsystem -ne '5.01' -or $imports.architecture -ne 'x86' -or
     $imports.inventories -notcontains '5.1.2600.txt' -or $imports.inventories -notcontains '6.1.7600.txt') {
@@ -56,7 +56,7 @@ if ($SourcePackage) {
         if ($parts.Count -ne 2 -or $parts[0] -notin @('zlib','id3','kissfft','ssrc','mpeg','dream','detours')) { throw 'Invalid dependency source manifest.' }
         Copy-Item -LiteralPath $parts[1] -Destination (Join-Path $upstreams $parts[0]) -Recurse
     }
-    # CoolSB and the compatibility toolchain retain their fixed download paths.
+    # CoolSB, UnRAR and the compatibility toolchain retain fixed download paths.
     # The private tests, reference binaries and generated build trees are excluded.
     $sourceArchive = Join-Path $output "ttpcomm-$PackageVersion-source.zip"
     Compress-Archive -LiteralPath $source -DestinationPath $sourceArchive -Force

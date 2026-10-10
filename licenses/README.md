@@ -6,6 +6,7 @@
 
 | 依赖 | 固定版本/提交 | 用途 | 本地文本 |
 | --- | --- | --- | --- |
+| UnRAR | `7.3.1` | RAR4／RAR5 只读归档服务，静态链接到 `ttpcomm.dll` | `UnRAR-LICENSE.txt` |
 | Tenacity libid3tag | `0.16.4` | ID3 对象、字段与 PIC 封面解析；构建目录内应用原版兼容修改 | `libid3tag-COPYING.txt`、`libid3tag-COPYRIGHT.txt`、`libid3tag-CREDITS.txt` |
 | zlib | `1.3.2` | 解压后端；导出层恢复旧接口返回规则 | `zlib-LICENSE.txt` |
 | KISS FFT | `131.2.0` | 频谱后端，恢复原版 x87 中间值舍入位置 | `kissfft-COPYING.txt`、`kissfft-BSD-3-Clause.txt` |
@@ -17,7 +18,7 @@
 | VC-LTL | `5.3.1` | 系统 MSVCRT 适配 | `VC-LTL-LICENSE.txt` |
 | YY-Thunks | `1.2.2` | 旧 Windows API 兼容 | `YY-Thunks-LICENSE.txt` |
 
-下载地址及 SHA256 的权威配置是 `cmake/dependencies.cmake` 和 `cmake/legacy_windows.cmake`。
+下载地址及 SHA256 的权威配置是 `cmake/dependencies.cmake`、`cmake/unrar.cmake` 和 `cmake/legacy_windows.cmake`。
 源码源站分别为 Codeberg tenacityteam/libid3tag、madler/zlib、mborgerding/kissfft、AviSynth/AviSynthPlus、LAME/Goom 官方 SourceForge、CoolSB 1.2 源码镜像、microsoft/Detours、Chuyu-Team/VC-LTL5、Chuyu-Team/YY-Thunks。
 
 libid3tag 的 `compat.gperf`、`frametype.gperf` 声明在构建时由 Python 转成有界二分查找表，保留上游字段和翻译函数；不要求额外安装 gperf。流派表由上游数据生成并保留 TTPlayer 的 148 项历史解释。生成代码只存在于构建目录。

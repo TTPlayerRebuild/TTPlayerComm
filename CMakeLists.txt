@@ -10,10 +10,11 @@ include(cmake/size_release.cmake)
 include(cmake/version.cmake)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(cmake/dependencies.cmake)
+include(cmake/unrar.cmake)
 
 # All 67 exports are recovered. Keep the CMake target name for build continuity;
 # the release filename and PE module identity now match the original host ABI.
-add_library(ttpcomm_core SHARED src/runtime.cpp src/extensions.cpp src/runtime_services.cpp src/runtime_pcm.cpp src/runtime_quantizer.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
+add_library(ttpcomm_core SHARED src/archive.cpp src/runtime.cpp src/extensions.cpp src/runtime_services.cpp src/runtime_pcm.cpp src/runtime_quantizer.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
   src/resampler.cpp src/replaygain.cpp src/equalizer.cpp src/surround.cpp src/dts.cpp src/spectrum.cpp src/abi_checks.cpp
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
@@ -28,7 +29,7 @@ set_source_files_properties(src/runtime_pcm.cpp src/runtime_quantizer.cpp PROPER
 # Only the terminal /GS reporter must not recursively instrument itself.
 set_source_files_properties(src/security.cpp PROPERTIES COMPILE_OPTIONS "/GS-")
 target_link_options(ttpcomm_core PRIVATE "/MAP:$<TARGET_FILE_DIR:ttpcomm_core>/ttpcomm.map")
-target_link_libraries(ttpcomm_core PRIVATE ttpcomm_id3 ttpcomm_zlib ttpcomm_fft ttpcomm_ssrc ttpcomm_mpeg ttpcomm_coolsb ttpcomm_detours iphlpapi user32 gdi32)
+target_link_libraries(ttpcomm_core PRIVATE ttpcomm_unrar ttpcomm_id3 ttpcomm_zlib ttpcomm_fft ttpcomm_ssrc ttpcomm_mpeg ttpcomm_coolsb ttpcomm_detours iphlpapi user32 gdi32 ole32 uuid)
 set_target_properties(ttpcomm_core PROPERTIES PREFIX "" OUTPUT_NAME "ttpcomm")
 add_custom_command(TARGET ttpcomm_core POST_BUILD
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_abi.py"

@@ -1,5 +1,7 @@
 # ttpcomm 重建
 
+2026-10-11：新增 RAR4／RAR5 只读归档服务，UnRAR 引擎静态并入 DLL，保留 XP／Win7 兼容。新增导出 `ttpcomm_query_archive`（502）；接口、内存限制和验证范围见 [归档服务说明](docs/ARCHIVE_SERVICE.md)。
+
 以千千静听 5.7.9 随附的 `ttpcomm.dll` 为参考，恢复 x86 导出、数据结构、处理行为及旧系统兼容性。
 
 **已恢复全部 67 个有效导出，构建输出 `ttpcomm.dll`。**

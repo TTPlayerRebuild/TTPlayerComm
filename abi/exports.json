@@ -635,6 +635,13 @@
       "calling_convention": "cdecl",
       "status": "implemented",
       "implementation": "ttpcomm_query_runtime"
+    },
+    {
+      "ordinal": 502,
+      "name": "ttpcomm_query_archive",
+      "calling_convention": "cdecl",
+      "status": "implemented",
+      "implementation": "ttpcomm_query_archive"
     }
   ]
 }
