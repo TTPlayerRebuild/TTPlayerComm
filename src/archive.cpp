@@ -1,5 +1,6 @@
 #include <ttpcomm/archive_api.h>
 #include "archive_internal.h"
+#include "archive_group.h"
 #include <dll.hpp>
 #include <algorithm>
 #include <atomic>
@@ -10,6 +11,10 @@
 #include <mutex>
 #include <string>
 #include <vector>
+
+// Use the same naming rules as the linked UnRAR engine, after its header has
+// identified the numbering generation. Do not infer RAR generations by suffix.
+size_t VolNameToFirstName(const std::wstring&,std::wstring&,bool);
 
 namespace {
 constexpr uint64_t MiB = 1024ULL * 1024;
@@ -153,6 +158,7 @@ struct Operation {
     ttpcomm::archive::Sink* sink{};
     uint64_t produced{};
     uint64_t expected{};
+    uint64_t scanned{};
     HRESULT error{S_OK};
     explicit Operation(const TtpCommArchiveOptions* input) {
         if(input) options=*input;
@@ -165,13 +171,14 @@ struct Operation {
     }
     bool Progress() {
         if(FAILED(error)) return false;
-        if(options.progress && !options.progress(options.context,produced,expected)) error=Cancelled();
+        if(options.progress && !options.progress(options.context,produced+scanned,scanned?0:expected)) error=Cancelled();
         return SUCCEEDED(error);
     }
     static int CALLBACK Callback(UINT message,LPARAM user,LPARAM p1,LPARAM p2) {
         auto& op=*reinterpret_cast<Operation*>(user);
         try {
             if(!op.Progress()) return -1;
+            if(message==UCM_PROCESSDATA && !op.output && !op.sink && p2>0)op.scanned+=static_cast<uint32_t>(p2);
             if(message==UCM_PROCESSDATA && (op.output || op.sink)) {
                 const uint32_t count=static_cast<uint32_t>(p2);
                 if(count>op.expected-op.produced) op.error=HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
@@ -189,12 +196,26 @@ struct Operation {
                 return -1;
             }
             if(message==UCM_NEEDPASSWORD) { op.error=TTPCOMM_ARCHIVE_PASSWORD; return -1; }
-            if((message==UCM_CHANGEVOLUME || message==UCM_CHANGEVOLUMEW) && p2==RAR_VOL_ASK) {
-                op.error=TTPCOMM_ARCHIVE_MISSING_VOLUME; return -1;
+            if(message==UCM_CHANGEVOLUMEW) {
+                const auto* name=reinterpret_cast<const wchar_t*>(p1);
+                if(p2==RAR_VOL_ASK){
+                    if(!ttpcomm::archive::active_volumes){op.error=TTPCOMM_ARCHIVE_MISSING_VOLUME;return -1;}
+                    const auto replacement=ttpcomm::archive::ResolveVolume(name);
+                    // UnRAR's Unicode change-volume buffer is MAXPATHSIZE.
+                    if(replacement.size()>=32768){op.error=HRESULT_FROM_WIN32(ERROR_FILENAME_EXCED_RANGE);return -1;}
+                    wcscpy_s(reinterpret_cast<wchar_t*>(p1),32768,replacement.c_str());return 1;
+                }
+                if(p2==RAR_VOL_NOTIFY && ttpcomm::archive::active_volumes)
+                    ttpcomm::archive::active_volumes->TrackRar(name);
+            }
+            if(message==UCM_CHANGEVOLUME && p2==RAR_VOL_ASK){
+                // Unicode callback already resolved/validated the same path.
+                return 1;
             }
             if(message==UCM_LARGEDICT) { op.error=TTPCOMM_ARCHIVE_DICTIONARY_LIMIT; return -1; }
             return 1;
-        } catch(...) { op.error=E_OUTOFMEMORY; return -1; }
+        } catch(HRESULT hr) {op.error=hr;return -1;}
+          catch(...) { op.error=E_OUTOFMEMORY; return -1; }
     }
     HRESULT Result(int result) const { return FAILED(error) ? error : RarResult(result); }
 };
@@ -211,11 +232,21 @@ struct RarHandle {
     bool volumes{};
     ~RarHandle() { if(value) RARCloseArchive(value); }
     HRESULT Open(const wchar_t* path,unsigned mode,Operation& op) {
+        auto actual=ttpcomm::archive::ResolveVolume(path);
         RAROpenArchiveDataEx data{};
-        data.ArcNameW=const_cast<wchar_t*>(path); data.OpenMode=mode;
+        data.ArcNameW=const_cast<wchar_t*>(actual.c_str()); data.OpenMode=mode;
         data.Callback=Operation::Callback; data.UserData=reinterpret_cast<LPARAM>(&op);
         value=RAROpenArchiveEx(&data);
         volumes=(data.Flags&ROADF_VOLUME)!=0;
+        if(value && volumes && !(data.Flags&ROADF_FIRSTVOLUME)){
+            RARCloseArchive(value);value=nullptr;
+            std::wstring first;VolNameToFirstName(actual,first,(data.Flags&ROADF_NEWNUMBERING)!=0);
+            actual=ttpcomm::archive::ResolveVolume(first);
+            data.ArcNameW=const_cast<wchar_t*>(actual.c_str());data.Flags=0;data.OpenResult=0;
+            value=RAROpenArchiveEx(&data);
+            if(value && !(data.Flags&ROADF_FIRSTVOLUME))return TTPCOMM_ARCHIVE_MISSING_VOLUME;
+        }
+        if(value && ttpcomm::archive::active_volumes)ttpcomm::archive::active_volumes->TrackRar(actual.c_str());
         return value ? S_OK : data.OpenResult ? op.Result(data.OpenResult) : E_UNEXPECTED;
     }
 };
@@ -263,12 +294,13 @@ HRESULT __cdecl Enumerate(const wchar_t* path,const TtpCommArchiveOptions* optio
             if(header.data.Flags&RHDF_DIRECTORY) entry.flags|=TTPCOMM_ARCHIVE_DIRECTORY;
             if(header.data.Flags&RHDF_ENCRYPTED) entry.flags|=TTPCOMM_ARCHIVE_ENCRYPTED;
             if(header.data.Flags&RHDF_SOLID) entry.flags|=TTPCOMM_ARCHIVE_SOLID;
-            if(header.data.Flags&(RHDF_SPLITBEFORE|RHDF_SPLITAFTER)) entry.flags|=TTPCOMM_ARCHIVE_SPLIT;
+            if(archive.volumes || (header.data.Flags&(RHDF_SPLITBEFORE|RHDF_SPLITAFTER))) entry.flags|=TTPCOMM_ARCHIVE_SPLIT;
             if(header.data.RedirType || !SafeMember(name)) entry.flags|=TTPCOMM_ARCHIVE_LINK;
             if(!visitor(context,&entry)) return Cancelled();
             hr=op.Result(RARProcessFileW(archive.value,RAR_SKIP,nullptr,nullptr)); if(FAILED(hr)) return hr;
         }
-    } catch(const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    } catch(HRESULT hr) { return hr; }
+      catch(const std::bad_alloc&) { return E_OUTOFMEMORY; }
       catch(...) { return HRESULT_FROM_WIN32(ERROR_INVALID_DATA); }
 }
 
@@ -294,6 +326,9 @@ HRESULT __cdecl OpenMember(const wchar_t* path,const wchar_t* member,const TtpCo
 }
 
 namespace ttpcomm::archive {
+HRESULT DiscoverRarVolumes(const wchar_t* path,const TtpCommArchiveOptions* options){
+    return Enumerate(path,options,[](void*,const TtpCommArchiveEntry*)->BOOL{return TRUE;},nullptr);
+}
 HRESULT EnumerateRar(const wchar_t* path,const TtpCommArchiveOptions* options,TtpCommArchiveVisitor visitor,void* context) {
     return Enumerate(path,options,visitor,context);
 }
@@ -321,7 +356,9 @@ HRESULT ExtractRar(const wchar_t* path,const wchar_t* member,const TtpCommArchiv
                 // A non-split member can still depend on other volumes (solid
                 // predecessors or a later volume). The first file's identity
                 // alone is insufficient for a retained cache of any such set.
-                hr=sink.Begin(op.expected,(archive.volumes || (header.data.Flags&(RHDF_SPLITBEFORE|RHDF_SPLITAFTER))) ? TTPCOMM_ARCHIVE_SPLIT : 0); if(FAILED(hr)) return hr;
+                uint32_t flags=(archive.volumes || (header.data.Flags&(RHDF_SPLITBEFORE|RHDF_SPLITAFTER))) ? TTPCOMM_ARCHIVE_SPLIT : 0;
+                if(header.data.Flags&RHDF_ENCRYPTED)flags|=TTPCOMM_ARCHIVE_ENCRYPTED;
+                hr=sink.Begin(op.expected,flags); if(FAILED(hr)) return hr;
                 op.sink=&sink;
                 hr=op.Result(RARProcessFileW(archive.value,RAR_TEST,nullptr,nullptr));
                 op.sink=nullptr;
@@ -330,12 +367,15 @@ HRESULT ExtractRar(const wchar_t* path,const wchar_t* member,const TtpCommArchiv
             }
             hr=op.Result(RARProcessFileW(archive.value,RAR_SKIP,nullptr,nullptr)); if(FAILED(hr)) return hr;
         }
-    } catch(const std::bad_alloc&) { return E_OUTOFMEMORY; }
+    } catch(HRESULT hr) { return hr; }
+      catch(const std::bad_alloc&) { return E_OUTOFMEMORY; }
       catch(...) { return HRESULT_FROM_WIN32(ERROR_INVALID_DATA); }
 }
 }
 
 extern "C" BOOL __cdecl ttpcomm_query_archive(uint32_t abi,TtpCommArchiveApi* api) {
+    if(abi==TTPCOMM_ARCHIVE_GROUP_ABI)
+        return ttpcomm::archive::QueryGroups(reinterpret_cast<TtpCommArchiveGroupApi*>(api));
     if(abi==TTPCOMM_ARCHIVE_STREAM_ABI)
         return ttpcomm::archive::QueryStreams(reinterpret_cast<TtpCommArchiveStreamApi*>(api));
     if(!api || api->size<sizeof(*api) || abi!=TTPCOMM_ARCHIVE_ABI) return FALSE;

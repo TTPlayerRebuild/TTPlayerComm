@@ -11,6 +11,8 @@ include(cmake/version.cmake)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(cmake/dependencies.cmake)
 include(cmake/unrar.cmake)
+include(cmake/archive_extended.cmake)
+include(cmake/archive_seven.cmake)
 
 # All 67 exports are recovered. Keep the CMake target name for build continuity;
 # the release filename and PE module identity now match the original host ABI.
@@ -18,7 +20,7 @@ add_library(ttpcomm_core SHARED src/archive.cpp src/runtime.cpp src/extensions.c
   src/resampler.cpp src/replaygain.cpp src/equalizer.cpp src/surround.cpp src/dts.cpp src/spectrum.cpp src/abi_checks.cpp
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
-target_sources(ttpcomm_core PRIVATE src/archive_zip.cpp src/archive_stream.cpp)
+target_sources(ttpcomm_core PRIVATE src/archive_zip.cpp src/archive_stream.cpp src/archive_extended.cpp src/archive_seven.cpp src/archive_group.cpp)
 target_compile_definitions(ttpcomm_core PRIVATE UNICODE _UNICODE NOMINMAX
   WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0501 _CRT_SECURE_NO_WARNINGS)
 target_compile_options(ttpcomm_core PRIVATE /W4 /permissive- /EHsc /utf-8 /fp:precise)
@@ -31,6 +33,7 @@ set_source_files_properties(src/runtime_pcm.cpp src/runtime_quantizer.cpp PROPER
 set_source_files_properties(src/security.cpp PROPERTIES COMPILE_OPTIONS "/GS-")
 target_link_options(ttpcomm_core PRIVATE "/MAP:$<TARGET_FILE_DIR:ttpcomm_core>/ttpcomm.map")
 target_link_libraries(ttpcomm_core PRIVATE ttpcomm_unrar ttpcomm_id3 ttpcomm_zlib ttpcomm_fft ttpcomm_ssrc ttpcomm_mpeg ttpcomm_coolsb ttpcomm_detours iphlpapi user32 gdi32 ole32 uuid)
+target_link_libraries(ttpcomm_core PRIVATE archive_static ttpcomm_seven oleaut32 advapi32)
 set_target_properties(ttpcomm_core PROPERTIES PREFIX "" OUTPUT_NAME "ttpcomm")
 add_custom_command(TARGET ttpcomm_core POST_BUILD
   COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cmake/check_abi.py"

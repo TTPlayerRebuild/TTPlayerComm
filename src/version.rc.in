@@ -25,3 +25,11 @@ BEGIN
     VALUE "Translation", 0x0409, 1200
   END
 END
+
+// Read by the release verifier without executing the DLL. ABI 2 is additive;
+// bits cover ZIP/RAR streams, TAR/gzip/7z, UTF-8 ZIP and ZIP64.
+LANGUAGE 0, 0
+503 RCDATA
+BEGIN
+  0x41435054L, 1L, 3L, 16383L
+END

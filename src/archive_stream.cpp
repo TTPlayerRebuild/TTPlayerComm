@@ -1,4 +1,7 @@
 #include "archive_internal.h"
+#include "archive_group.h"
+#include <ttpcomm/archive_format.h>
+#include <ttpcomm/archive_volumes.h>
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -14,22 +17,20 @@ namespace ttpcomm::archive {
 namespace {
 HRESULT Cancelled() { return HRESULT_FROM_WIN32(ERROR_CANCELLED); }
 HRESULT LastError() { const auto e=GetLastError();return HRESULT_FROM_WIN32(e ? e : ERROR_READ_FAULT); }
-bool Zip(const wchar_t* path) { const auto dot=wcsrchr(path,L'.');return dot && !_wcsicmp(dot,L".zip"); }
-bool Rar(const wchar_t* path) { const auto dot=wcsrchr(path,L'.');return dot && !_wcsicmp(dot,L".rar"); }
+bool Zip(const wchar_t* path) { return archive_format::Detect(path)==archive_format::Kind::zip; }
+bool Rar(const wchar_t* path) { return archive_format::Detect(path)==archive_format::Kind::rar; }
 struct FileIdentity {
-    HANDLE handle{INVALID_HANDLE_VALUE};std::wstring path,key;
-    ~FileIdentity(){if(handle!=INVALID_HANDLE_VALUE)CloseHandle(handle);}
-    HRESULT Open(const wchar_t* input) {
-        const DWORD n=GetFullPathNameW(input,0,nullptr,nullptr);if(!n)return LastError();
-        std::vector<wchar_t> buffer(n);if(!GetFullPathNameW(input,n,buffer.data(),nullptr))return LastError();
-        path=buffer.data();
-        handle=CreateFileW(path.c_str(),GENERIC_READ,FILE_SHARE_READ,nullptr,OPEN_EXISTING,FILE_ATTRIBUTE_NORMAL,nullptr);
-        if(handle==INVALID_HANDLE_VALUE)return LastError();
-        BY_HANDLE_FILE_INFORMATION i{};if(!GetFileInformationByHandle(handle,&i))return LastError();
-        key=path;
-        for(DWORD v:{i.dwVolumeSerialNumber,i.nFileIndexHigh,i.nFileIndexLow,i.nFileSizeHigh,i.nFileSizeLow,
-                     i.ftLastWriteTime.dwHighDateTime,i.ftLastWriteTime.dwLowDateTime})key+=L"|"+std::to_wstring(v);
-        return S_OK;
+    std::unique_ptr<archive_volumes::Set> volumes;std::wstring path,key;
+    std::vector<std::pair<std::wstring,std::wstring>> mappings;
+    HRESULT Open(const wchar_t* input,const TtpCommArchiveStreamOptions& options) {
+        try{
+            VolumeContext context;if(active_volumes){context.options=active_volumes->options;context.mappings=active_volumes->mappings;}
+            context.canceled=[fn=options.canceled,opaque=options.context]{return fn && fn(opaque);};
+            auto limits=options.limits;limits.size=sizeof(limits);limits.context=&context;
+            limits.progress=[](void* p,uint64_t,uint64_t)->BOOL{auto& c=*static_cast<VolumeContext*>(p);return !c.canceled || !c.canceled();};
+            volumes=context.Prepare(input,&limits);volumes->ForgetCallbacks();path=volumes->Path();key=volumes->Key();mappings=std::move(context.mappings);return S_OK;
+        }
+        catch(HRESULT hr){return hr;}
     }
 };
 std::atomic<uint64_t> sequence{0};
@@ -38,15 +39,20 @@ struct Task final : Sink {
     TtpCommArchiveOptions limits{};
     const uint64_t id=++sequence;
     std::mutex mutex,join_mutex;std::condition_variable changed;
-    std::vector<unsigned char> memory;HANDLE file{INVALID_HANDLE_VALUE},identity{INVALID_HANDLE_VALUE};
+    std::vector<unsigned char> memory;HANDLE file{INVALID_HANDLE_VALUE};
+    std::unique_ptr<archive_volumes::Set> identity;
+    std::vector<std::pair<std::wstring,std::wstring>> mappings;
+    bool identity_reliable{};
     uint64_t total{},produced{};uint32_t users{};
-    bool ready{},complete{},cacheable{true},retained{};HRESULT result{E_PENDING};
+    bool ready{},complete{},unknown{},encrypted{},cacheable{true},retained{},has_password{};HRESULT result{E_PENDING};
     std::atomic<bool> cancel{false};std::thread worker;
+    std::atomic<DWORD> activity{GetTickCount()};
+    uint64_t work_done{},work_total{}; // producer only
     Task(FileIdentity& input,const wchar_t* name,const TtpCommArchiveOptions& options)
         :path(input.path),member(name),key(input.key),limits(options) {
-        if(options.password)password=options.password;
+        has_password=options.password!=nullptr;if(has_password)password=options.password;
         limits.password=nullptr;limits.progress=nullptr;limits.context=nullptr;
-        identity=input.handle;input.handle=INVALID_HANDLE_VALUE;
+        identity=std::move(input.volumes);identity_reliable=identity->Reliable();mappings=std::move(input.mappings);
         if(!limits.member_limit_bytes)limits.member_limit_bytes=8ULL*1024*1024*1024;
         if(!limits.dictionary_limit_kib)limits.dictionary_limit_kib=256*1024;
         limits.dictionary_limit_kib=std::min(limits.dictionary_limit_kib,512u*1024);
@@ -54,28 +60,43 @@ struct Task final : Sink {
         limits.memory_limit_bytes=std::min(limits.memory_limit_bytes,64u*1024*1024);
         if(!limits.entry_limit)limits.entry_limit=100000;
     }
-    ~Task(){cancel=true;changed.notify_all();Join();if(identity!=INVALID_HANDLE_VALUE)CloseHandle(identity);if(file!=INVALID_HANDLE_VALUE)CloseHandle(file);}
+    ~Task(){cancel=true;changed.notify_all();Join();SecureZeroMemory(password.data(),password.size()*sizeof(wchar_t));if(file!=INVALID_HANDLE_VALUE)CloseHandle(file);}
     void Join(){std::lock_guard<std::mutex> guard(join_mutex);if(worker.joinable())worker.join();}
     void Start(){worker=std::thread([this]{Run();});}
     void Run() noexcept {
         HRESULT hr=E_FAIL;
         try {
-            auto options=limits;options.size=sizeof(options);options.password=password.empty()?nullptr:password.c_str();
-            options.progress=[](void* p,uint64_t,uint64_t)->BOOL{return !static_cast<Task*>(p)->cancel.load();};options.context=this;
+            VolumeContext volumes;volumes.archive=path;volumes.mappings=mappings;
+            volumes.canceled=[this]{return cancel.load();};VolumeScope scope(volumes);
+            auto options=limits;options.size=sizeof(options);options.password=has_password?password.c_str():nullptr;
+            options.progress=[](void* p,uint64_t n,uint64_t total)->BOOL{
+                auto& task=*static_cast<Task*>(p);
+                if(n!=task.work_done || total!=task.work_total){task.work_done=n;task.work_total=total;task.activity=GetTickCount();}
+                return !task.cancel.load();
+            };options.context=this;
             hr=Zip(path.c_str()) ? ExtractZip(path.c_str(),member.c_str(),&options,*this)
-                                : ExtractRar(path.c_str(),member.c_str(),&options,*this);
+                : Rar(path.c_str()) ? ExtractRar(path.c_str(),member.c_str(),&options,*this)
+                : ExtractExtended(path.c_str(),member.c_str(),&options,*this);
         } catch(const std::bad_alloc&){hr=E_OUTOFMEMORY;}catch(...){hr=E_FAIL;}
         // A completed cache holds bytes, not a deny-write handle on the archive.
-        if(identity!=INVALID_HANDLE_VALUE){CloseHandle(identity);identity=INVALID_HANDLE_VALUE;}
-        {std::lock_guard<std::mutex> lock(mutex);result=hr;complete=true;}
+        identity.reset();
+        {std::lock_guard<std::mutex> lock(mutex);
+            if(unknown){total=produced;unknown=false;}
+            if(SUCCEEDED(hr) && (!ready || produced!=total))hr=STG_E_READFAULT;
+            result=hr;complete=true;}
         changed.notify_all();
     }
     HRESULT Begin(uint64_t length,uint32_t flags) override {
         std::lock_guard<std::mutex> lock(mutex);if(cancel)return Cancelled();
-        if(length>limits.member_limit_bytes || length>uint64_t(INT64_MAX))return HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE);
-        total=length;cacheable=!(flags&TTPCOMM_ARCHIVE_SPLIT); // Other volumes have independent identities.
+        unknown=(flags&TTPCOMM_ARCHIVE_UNKNOWN_SIZE)!=0;
+        encrypted=(flags&TTPCOMM_ARCHIVE_ENCRYPTED)!=0;
+        if(!unknown && (length>limits.member_limit_bytes || length>uint64_t(INT64_MAX)))return HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE);
+        total=length;
+        // Preserve the current large CUE image. Only completed small previous
+        // members enter the additional LRU slots (see Open below).
+        cacheable=identity_reliable;
         retained=retained && cacheable;
-        if(length<=limits.memory_limit_bytes)memory.reserve(static_cast<size_t>(length));
+        if(!unknown && length<=limits.memory_limit_bytes)memory.reserve(static_cast<size_t>(length));
         else {
             wchar_t temp[MAX_PATH+1]{},guid[40]{};GUID id{};
             const auto n=GetTempPathW(MAX_PATH,temp);if(!n || n>=MAX_PATH)return HRESULT_FROM_WIN32(ERROR_BAD_PATHNAME);
@@ -87,9 +108,18 @@ struct Task final : Sink {
         }
         ready=true;changed.notify_all();return S_OK;
     }
+    HRESULT RetryEncrypted() override {
+        std::lock_guard<std::mutex> lock(mutex);
+        if(cancel)return Cancelled();if(complete || ready && !encrypted)return E_UNEXPECTED;
+        SecureZeroMemory(memory.data(),memory.size());memory.clear();
+        if(file!=INVALID_HANDLE_VALUE){CloseHandle(file);file=INVALID_HANDLE_VALUE;}
+        total=produced=0;ready=false;unknown=false;encrypted=true;
+        changed.notify_all();return S_OK;
+    }
     HRESULT Write(const void* bytes,uint32_t size) override {
         std::lock_guard<std::mutex> lock(mutex);if(cancel)return Cancelled();
-        if(produced>total || size>total-produced)return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+        if(size>limits.member_limit_bytes-produced)return HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE);
+        if(!unknown && (produced>total || size>total-produced))return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
         if(file==INVALID_HANDLE_VALUE) {
             const auto* p=static_cast<const unsigned char*>(bytes);memory.insert(memory.end(),p,p+size);
         } else {
@@ -121,30 +151,36 @@ struct Task final : Sink {
         const auto dict=std::min(options.dictionary_limit_kib?options.dictionary_limit_kib:256u*1024,512u*1024);
         const auto mem=std::min(options.memory_limit_bytes?options.memory_limit_bytes:16u*1024*1024,64u*1024*1024);
         const auto entries=options.entry_limit?options.entry_limit:100000u;
-        return cacheable && !cancel && (!complete || SUCCEEDED(result)) && password.empty() &&
-            (!options.password || !*options.password) && !_wcsicmp(key.c_str(),input.key.c_str()) &&
+        return cacheable && !cancel && (!complete || SUCCEEDED(result)) && has_password==(options.password!=nullptr) &&
+            (!has_password || password==options.password) && !_wcsicmp(key.c_str(),input.key.c_str()) &&
             !_wcsicmp(member.c_str(),name) && limits.member_limit_bytes==limit &&
             limits.dictionary_limit_kib==dict && limits.memory_limit_bytes==mem && limits.entry_limit==entries;
     }
 };
 std::mutex cache_mutex;
-std::shared_ptr<Task> current;
+std::vector<std::shared_ptr<Task>> cached;
 // Private identity lets status reject unrelated IStreams without RTTI casts.
-const IID StatusId={0x4d4a30fe,0x8b93,0x44d7,{0xa6,0x72,0x73,0x4d,0x6f,0x4b,0xc5,0x36}};
-struct StatusInterface : IUnknown { virtual HRESULT STDMETHODCALLTYPE Snapshot(TtpCommArchiveStreamStatus*)=0; };
+const auto& StatusId=IID_TtpCommArchiveStreamStatus;
+using StatusInterface=TtpCommArchiveStreamStatusInterface;
 class Stream final : public IStream,public StatusInterface {
     std::atomic<ULONG> refs_{1};std::shared_ptr<Task> task_;
     TtpCommArchiveStreamOptions options_{};uint64_t position_{};std::mutex cursor_;
     std::atomic<bool> aborted_{false};
     bool Canceled() const {return options_.canceled && options_.canceled(options_.context);}
     HRESULT Wait(std::unique_lock<std::mutex>& lock,uint64_t wanted,bool only_header) {
-        const DWORD start=GetTickCount(),timeout=options_.timeout_ms?options_.timeout_ms:30000;
+        DWORD start=GetTickCount();
+        const DWORD timeout=options_.timeout_ms?options_.timeout_ms:30000;
+        auto produced=task_->produced;
+        auto activity=task_->activity.load();
         for(;;) {
             lock.unlock();bool canceled{};try{canceled=Canceled();}catch(...){canceled=true;}lock.lock();
             if(canceled){aborted_=true;return Cancelled();}
             if(task_->complete && FAILED(task_->result))return task_->result;
-            if(task_->ready && (only_header || (task_->produced>=wanted && (wanted<task_->total || task_->complete))))return S_OK;
+            if(task_->ready && (!task_->encrypted || task_->complete) && (only_header || (task_->produced>=wanted && (wanted<task_->total || task_->complete))))return S_OK;
+            if(task_->ready && task_->complete)return S_OK;
             if(task_->complete)return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+            const auto next=task_->activity.load();
+            if(task_->produced!=produced || next!=activity){produced=task_->produced;activity=next;start=GetTickCount();}
             if(GetTickCount()-start>=timeout){aborted_=true;return HRESULT_FROM_WIN32(ERROR_TIMEOUT);}
             task_->changed.wait_for(lock,std::chrono::milliseconds(25));
         }
@@ -167,8 +203,9 @@ public:
         std::lock_guard<std::mutex> cursor(cursor_);std::unique_lock<std::mutex> lock(task_->mutex);
         HRESULT hr=Wait(lock,0,true);if(FAILED(hr))return hr;
         if(!count)return S_OK;
-        const auto n=static_cast<ULONG>(position_<task_->total?std::min<uint64_t>(count,task_->total-position_):0);
+        auto n=static_cast<ULONG>(position_<task_->total?std::min<uint64_t>(count,task_->total-position_):0);
         hr=Wait(lock,position_<task_->total?position_+n:task_->total,false);if(FAILED(hr))return hr;
+        n=static_cast<ULONG>(position_<task_->total?std::min<uint64_t>(count,task_->total-position_):0);
         if(n) {
             if(task_->file==INVALID_HANDLE_VALUE)memcpy(data,task_->memory.data()+static_cast<size_t>(position_),n);
             else {LARGE_INTEGER pos{};pos.QuadPart=static_cast<LONGLONG>(position_);DWORD got{};
@@ -181,6 +218,7 @@ public:
         std::lock_guard<std::mutex> cursor(cursor_);std::unique_lock<std::mutex> lock(task_->mutex);
         HRESULT hr=Wait(lock,0,true);if(FAILED(hr))return hr;
         if(origin>STREAM_SEEK_END)return STG_E_INVALIDFUNCTION;
+        if(origin==STREAM_SEEK_END && task_->unknown){hr=Wait(lock,UINT64_MAX,false);if(FAILED(hr))return hr;}
         const auto base=origin==STREAM_SEEK_SET?0:origin==STREAM_SEEK_CUR?position_:task_->total;
         if(move.QuadPart<0){const auto distance=uint64_t(-(move.QuadPart+1))+1;if(distance>base)return STG_E_INVALIDFUNCTION;position_=base-distance;}
         else {if(uint64_t(move.QuadPart)>uint64_t(INT64_MAX)-base)return STG_E_INVALIDFUNCTION;position_=base+uint64_t(move.QuadPart);}
@@ -188,7 +226,8 @@ public:
     }
     HRESULT STDMETHODCALLTYPE Stat(STATSTG* out,DWORD flags) override {
         if(!out)return E_POINTER;if(flags!=STATFLAG_DEFAULT && flags!=STATFLAG_NONAME)return STG_E_INVALIDFLAG;
-        std::unique_lock<std::mutex> lock(task_->mutex);const HRESULT hr=Wait(lock,0,true);if(FAILED(hr))return hr;
+        std::unique_lock<std::mutex> lock(task_->mutex);HRESULT hr=Wait(lock,0,true);if(FAILED(hr))return hr;
+        if(task_->unknown){hr=Wait(lock,UINT64_MAX,false);if(FAILED(hr))return hr;}
         *out={};out->type=STGTY_STREAM;out->cbSize.QuadPart=task_->total;out->grfMode=STGM_READ;
         if(flags==STATFLAG_DEFAULT){const auto name=task_->path+L"|"+task_->member;
             out->pwcsName=static_cast<wchar_t*>(CoTaskMemAlloc((name.size()+1)*sizeof(wchar_t)));
@@ -222,31 +261,44 @@ public:
 };
 HRESULT __cdecl Enumerate(const wchar_t* path,const TtpCommArchiveOptions* options,TtpCommArchiveVisitor visitor,void* context) {
     if(!path)return E_INVALIDARG;
-    return Zip(path)?EnumerateZip(path,options,visitor,context):Rar(path)?EnumerateRar(path,options,visitor,context):TTPCOMM_ARCHIVE_UNSUPPORTED;
+    return Zip(path)?EnumerateZip(path,options,visitor,context):Rar(path)?EnumerateRar(path,options,visitor,context):EnumerateExtended(path,options,visitor,context);
 }
 HRESULT __cdecl Open(const wchar_t* path,const wchar_t* member,const TtpCommArchiveStreamOptions* input,IStream** out) {
     if(!out)return E_POINTER;*out=nullptr;
     if(!path || !*path || !member || !*member || (input && input->size!=sizeof(*input)))return E_INVALIDARG;
-    if(!Zip(path) && !Rar(path))return TTPCOMM_ARCHIVE_UNSUPPORTED;
+    if(!Zip(path) && !Rar(path) && !IsExtended(path))return TTPCOMM_ARCHIVE_UNSUPPORTED;
     TtpCommArchiveStreamOptions options{};if(input)options=*input;
     if(options.flags&~TTPCOMM_ARCHIVE_CACHE_CURRENT)return E_INVALIDARG;
     if(options.limits.size && options.limits.size!=sizeof(options.limits))return E_INVALIDARG;
     try {
         if(options.canceled && options.canceled(options.context))return Cancelled();
-        FileIdentity identity;HRESULT hr=identity.Open(path);if(FAILED(hr))return hr;
+        FileIdentity identity;HRESULT hr=identity.Open(path,options);if(FAILED(hr))return hr;
         std::wstring name(member);std::replace(name.begin(),name.end(),L'/',L'\\');
-        std::shared_ptr<Task> task,retired;
+        std::shared_ptr<Task> task;std::vector<std::shared_ptr<Task>> retired;
         {
             std::lock_guard<std::mutex> lock(cache_mutex);
-            if((options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT) && current && current->Matches(identity,name.c_str(),options.limits) && current->AddUser())task=current;
+            if(options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT){
+                for(size_t i=0;i<cached.size();++i)if(cached[i]->Matches(identity,name.c_str(),options.limits) && cached[i]->AddUser()){
+                    task=cached[i];cached.erase(cached.begin()+i);cached.push_back(task);break;
+                }
+            }
             if(!task) {
                 task=std::make_shared<Task>(identity,name.c_str(),options.limits);
                 task->retained=(options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT)!=0;
                 task->AddUser();task->Start();
-                if(options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT){retired=std::move(current);if(retired)retired->Unretain();current=task;}
+                if(options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT){
+                    cached.push_back(task);
+                }
+            }
+            if(options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT){
+                for(auto i=cached.begin();i!=cached.end();){bool keep=*i==task;
+                    if(!keep){std::lock_guard<std::mutex> item((*i)->mutex);keep=(*i)->complete && SUCCEEDED((*i)->result) && (*i)->cacheable && (*i)->total<=128ULL*1024*1024;}
+                    if(keep){++i;continue;}(*i)->Unretain();retired.push_back(*i);i=cached.erase(i);
+                }
+                while(cached.size()>3){cached.front()->Unretain();retired.push_back(cached.front());cached.erase(cached.begin());}
             }
         }
-        retired.reset(); // Do not join while holding the cache manager lock.
+        retired.clear(); // Do not join while holding the cache manager lock.
         Stream* stream{};
         try{stream=new Stream(task,options);}catch(...){task->DropUser();throw;}
         hr=stream->Initialize();if(FAILED(hr)){stream->Release();return hr;}
@@ -258,13 +310,41 @@ HRESULT __cdecl Status(IStream* stream,TtpCommArchiveStreamStatus* out) {
     HRESULT hr=stream->QueryInterface(StatusId,reinterpret_cast<void**>(&status));if(FAILED(hr))return hr;
     hr=status->Snapshot(out);status->Release();return hr;
 }
-void __cdecl Clear(){std::shared_ptr<Task> retired;{std::lock_guard<std::mutex> lock(cache_mutex);retired=std::move(current);if(retired)retired->Unretain();}retired.reset();}
+void __cdecl Clear(){std::vector<std::shared_ptr<Task>> retired;{std::lock_guard<std::mutex> lock(cache_mutex);retired.swap(cached);for(auto& item:retired)item->Unretain();}retired.clear();ClearExtendedCache();}
+
+bool ValidGroup(const TtpCommArchiveVolumeOptions* options){return !options || options->size==sizeof(*options);}
+HRESULT __cdecl GroupEnumerate(const wchar_t* path,const TtpCommArchiveOptions* limits,const TtpCommArchiveVolumeOptions* options,TtpCommArchiveVisitor visitor,void* opaque){
+    if(!path || !*path || !ValidGroup(options) || !visitor)return E_INVALIDARG;
+    try{VolumeContext c;c.archive=path;if(options)c.options=*options;
+        c.canceled=[limits]{return limits && limits->progress && !limits->progress(limits->context,0,0);};
+        VolumeScope scope(c);return Enumerate(path,limits,visitor,opaque);
+    }catch(HRESULT hr){return hr;}catch(const std::bad_alloc&){return E_OUTOFMEMORY;}catch(...){return E_FAIL;}
+}
+HRESULT __cdecl GroupOpen(const wchar_t* path,const wchar_t* member,const TtpCommArchiveStreamOptions* limits,const TtpCommArchiveVolumeOptions* options,IStream** out){
+    if(!ValidGroup(options)){if(out)*out=nullptr;return E_INVALIDARG;}
+    try{VolumeContext c;if(options)c.options=*options;VolumeScope scope(c);return Open(path,member,limits,out);}
+    catch(const std::bad_alloc&){if(out)*out=nullptr;return E_OUTOFMEMORY;}catch(...){if(out)*out=nullptr;return E_FAIL;}
+}
+HRESULT __cdecl Volumes(const wchar_t* path,const TtpCommArchiveOptions* limits,const TtpCommArchiveVolumeOptions* options,TtpCommArchiveVolumeVisitor visitor,void* opaque){
+    if(!path || !*path || !ValidGroup(options) || !visitor || (limits && limits->size!=sizeof(*limits)))return E_INVALIDARG;
+    try{VolumeContext c;if(options)c.options=*options;
+        c.canceled=[limits]{return limits && limits->progress && !limits->progress(limits->context,0,0);};
+        const auto files=c.Prepare(path,limits);
+        for(const auto& p:files->Paths()){if(c.canceled() || !visitor(opaque,p.c_str()))return Cancelled();}
+        return S_OK;
+    }catch(HRESULT hr){return hr;}catch(const std::bad_alloc&){return E_OUTOFMEMORY;}catch(...){return E_FAIL;}
+}
 }
 BOOL QueryStreams(TtpCommArchiveStreamApi* api) {
     if(!api || api->size<sizeof(*api))return FALSE;
-    *api={sizeof(*api),TTPCOMM_ARCHIVE_STREAM_ABI,TTPCOMM_ARCHIVE_STREAM_REQUIRED,0,Enumerate,Open,Status,Clear};return TRUE;
+    *api={sizeof(*api),TTPCOMM_ARCHIVE_STREAM_ABI,TTPCOMM_ARCHIVE_GROUP_REQUIRED,0,Enumerate,Open,Status,Clear};return TRUE;
+}
+BOOL QueryGroups(TtpCommArchiveGroupApi* api){
+    if(!api || api->size<sizeof(*api))return FALSE;
+    *api={sizeof(*api),TTPCOMM_ARCHIVE_GROUP_ABI,TTPCOMM_ARCHIVE_GROUP_REQUIRED,0,GroupEnumerate,GroupOpen,Volumes,Status,Clear};return TRUE;
 }
 }
 extern "C" BOOL __cdecl ttpcomm_query_archive_stream(uint32_t abi,TtpCommArchiveStreamApi* api) {
+    if(abi==TTPCOMM_ARCHIVE_GROUP_ABI)return ttpcomm::archive::QueryGroups(reinterpret_cast<TtpCommArchiveGroupApi*>(api));
     return abi==TTPCOMM_ARCHIVE_STREAM_ABI && ttpcomm::archive::QueryStreams(api);
 }

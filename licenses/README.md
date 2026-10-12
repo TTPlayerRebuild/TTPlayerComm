@@ -6,6 +6,11 @@
 
 | 依赖 | 固定版本/提交 | 用途 | 本地文本 |
 | --- | --- | --- | --- |
+| libarchive | `3.8.9` | TAR／gzip／7z 只读；仅注册所需读取器 | `libarchive-COPYING.txt`、`libarchive-NOTICES.txt` |
+| XZ／liblzma | `5.8.4` | 7z LZMA／LZMA2 与滤镜解码 | `xz-COPYING.txt`、`xz-0BSD.txt` |
+| LZMA SDK | `26.04` | 7z 数据／文件名 AES 加密、Copy、LZMA／LZMA2、PPMd、BCJ／Delta；静态解码 | `LZMA-SDK-PUBLIC-DOMAIN.txt` |
+| bzip2 | `1.0.8` | 7z BZip2 流式解码 | `BZIP2-LICENSE.txt` |
+| Zstandard | `1.5.7` | 7-Zip-Zstandard 方法解码，限制帧窗口和分配预算 | `ZSTD-LICENSE.txt` |
 | UnRAR | `7.3.1` | RAR4／RAR5 只读归档服务，静态链接到 `ttpcomm.dll` | `UnRAR-LICENSE.txt` |
 | Tenacity libid3tag | `0.16.4` | ID3 对象、字段与 PIC 封面解析；构建目录内应用原版兼容修改 | `libid3tag-COPYING.txt`、`libid3tag-COPYRIGHT.txt`、`libid3tag-CREDITS.txt` |
 | zlib | `1.3.2` | 解压后端；导出层恢复旧接口返回规则 | `zlib-LICENSE.txt` |
@@ -18,7 +23,7 @@
 | VC-LTL | `5.3.1` | 系统 MSVCRT 适配 | `VC-LTL-LICENSE.txt` |
 | YY-Thunks | `1.2.2` | 旧 Windows API 兼容 | `YY-Thunks-LICENSE.txt` |
 
-下载地址及 SHA256 的权威配置是 `cmake/dependencies.cmake`、`cmake/unrar.cmake` 和 `cmake/legacy_windows.cmake`。
+下载地址及 SHA256 的权威配置是 `cmake/dependencies.cmake`、`cmake/unrar.cmake`、`cmake/archive_extended.cmake`、`cmake/archive_seven.cmake`、`cmake/archive_extra_codecs.cmake` 和 `cmake/legacy_windows.cmake`。
 源码源站分别为 Codeberg tenacityteam/libid3tag、madler/zlib、mborgerding/kissfft、AviSynth/AviSynthPlus、LAME/Goom 官方 SourceForge、CoolSB 1.2 源码镜像、microsoft/Detours、Chuyu-Team/VC-LTL5、Chuyu-Team/YY-Thunks。
 
 libid3tag 的 `compat.gperf`、`frametype.gperf` 声明在构建时由 Python 转成有界二分查找表，保留上游字段和翻译函数；不要求额外安装 gperf。流派表由上游数据生成并保留 TTPlayer 的 148 项历史解释。生成代码只存在于构建目录。

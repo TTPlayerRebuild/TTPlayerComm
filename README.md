@@ -1,6 +1,8 @@
 # ttpcomm 重建
 
-2026-10-11：新增 RAR4／RAR5 只读归档服务，UnRAR 引擎静态并入 DLL，保留 XP／Win7 兼容。新增导出 `ttpcomm_query_archive`（502）；接口、内存限制和验证范围见 [归档服务说明](docs/ARCHIVE_SERVICE.md)。
+2026-10-12：只读归档服务支持 ZIP／RAR4／RAR5、TAR／gzip／tar.gz／tgz／7z，补齐 UTF-8 ZIP 和单卷 ZIP64。引擎静态并入 DLL，保留 XP／Win7 兼容；后台流使用 ABI 2，原版导出不变。接口、资源限制、只读依据和验证范围见 [归档服务说明](docs/ARCHIVE_SERVICE.md)。
+
+同日后续：接通传统 ZIP／AES、RAR／7z 密码与文件头容错、7z BZip2／Zstandard、ZIP／7z 分卷、包内歌词／图片及 TAR／gzip 有界目录缓存。最新增加 ABI 3 缺卷定位、RAR 实际整组身份及密码指纹、三个有界成员保留槽，并修正保留修改时间覆盖归档后的缓存失效；完整归档能力掩码为 `16383`。归档保持只读，详细验证范围见归档服务说明。
 
 以千千静听 5.7.9 随附的 `ttpcomm.dll` 为参考，恢复 x86 导出、数据结构、处理行为及旧系统兼容性。
 
