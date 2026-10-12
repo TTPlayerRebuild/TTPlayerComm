@@ -70,3 +70,4 @@ EXPORTS
   ttpcomm_query_extension @500
   ttpcomm_query_runtime @501
   ttpcomm_query_archive @502
+  ttpcomm_query_archive_stream @503

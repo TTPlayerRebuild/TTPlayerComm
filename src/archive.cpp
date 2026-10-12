@@ -1,4 +1,5 @@
 #include <ttpcomm/archive_api.h>
+#include "archive_internal.h"
 #include <dll.hpp>
 #include <algorithm>
 #include <atomic>
@@ -149,6 +150,8 @@ public:
 struct Operation {
     TtpCommArchiveOptions options{};
     Storage* output{};
+    ttpcomm::archive::Sink* sink{};
+    uint64_t produced{};
     uint64_t expected{};
     HRESULT error{S_OK};
     explicit Operation(const TtpCommArchiveOptions* input) {
@@ -162,17 +165,21 @@ struct Operation {
     }
     bool Progress() {
         if(FAILED(error)) return false;
-        if(options.progress && !options.progress(options.context,output ? output->length : 0,expected)) error=Cancelled();
+        if(options.progress && !options.progress(options.context,produced,expected)) error=Cancelled();
         return SUCCEEDED(error);
     }
     static int CALLBACK Callback(UINT message,LPARAM user,LPARAM p1,LPARAM p2) {
         auto& op=*reinterpret_cast<Operation*>(user);
         try {
             if(!op.Progress()) return -1;
-            if(message==UCM_PROCESSDATA && op.output) {
+            if(message==UCM_PROCESSDATA && (op.output || op.sink)) {
                 const uint32_t count=static_cast<uint32_t>(p2);
-                if(count>op.expected-op.output->length) op.error=HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-                else op.error=op.output->Append(reinterpret_cast<const void*>(p1),count);
+                if(count>op.expected-op.produced) op.error=HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
+                else {
+                    op.error=op.sink ? op.sink->Write(reinterpret_cast<const void*>(p1),count)
+                                     : op.output->Append(reinterpret_cast<const void*>(p1),count);
+                    if(SUCCEEDED(op.error)) op.produced+=count;
+                }
                 return op.Progress() ? 1 : -1;
             }
             if(message==UCM_NEEDPASSWORDW) {
@@ -201,12 +208,14 @@ bool Acquire(std::unique_lock<std::mutex>& lock,Operation& op) {
 }
 struct RarHandle {
     HANDLE value{};
+    bool volumes{};
     ~RarHandle() { if(value) RARCloseArchive(value); }
     HRESULT Open(const wchar_t* path,unsigned mode,Operation& op) {
         RAROpenArchiveDataEx data{};
         data.ArcNameW=const_cast<wchar_t*>(path); data.OpenMode=mode;
         data.Callback=Operation::Callback; data.UserData=reinterpret_cast<LPARAM>(&op);
         value=RAROpenArchiveEx(&data);
+        volumes=(data.Flags&ROADF_VOLUME)!=0;
         return value ? S_OK : data.OpenResult ? op.Result(data.OpenResult) : E_UNEXPECTED;
     }
 };
@@ -265,6 +274,30 @@ HRESULT __cdecl Enumerate(const wchar_t* path,const TtpCommArchiveOptions* optio
 
 HRESULT __cdecl OpenMember(const wchar_t* path,const wchar_t* member,const TtpCommArchiveOptions* options,IStream** out) {
     if(!out) return E_POINTER; *out=nullptr;
+    if(options && options->size!=sizeof(*options))return E_INVALIDARG;
+    struct StorageSink final : ttpcomm::archive::Sink {
+        std::shared_ptr<Storage> storage=std::make_shared<Storage>();
+        uint32_t memory;
+        explicit StorageSink(uint32_t limit):memory(limit) {}
+        HRESULT Begin(uint64_t length,uint32_t) override { return storage->Prepare(length,memory); }
+        HRESULT Write(const void* data,uint32_t length) override { return storage->Append(data,length); }
+    };
+    try {
+        Operation limits(options);
+        StorageSink sink(limits.options.memory_limit_bytes);
+        const HRESULT hr=ttpcomm::archive::ExtractRar(path,member,options,sink);
+        if(FAILED(hr)) return hr;
+        *out=new MemberStream(std::move(sink.storage)); return S_OK;
+    } catch(const std::bad_alloc&) { return E_OUTOFMEMORY; }
+      catch(...) { return HRESULT_FROM_WIN32(ERROR_INVALID_DATA); }
+}
+}
+
+namespace ttpcomm::archive {
+HRESULT EnumerateRar(const wchar_t* path,const TtpCommArchiveOptions* options,TtpCommArchiveVisitor visitor,void* context) {
+    return Enumerate(path,options,visitor,context);
+}
+HRESULT ExtractRar(const wchar_t* path,const wchar_t* member,const TtpCommArchiveOptions* options,Sink& sink) {
     if(!path || !*path || !member || !*member || (options && options->size!=sizeof(*options))) return E_INVALIDARG;
     try {
         std::wstring requested(member); std::replace(requested.begin(),requested.end(),L'/',L'\\');
@@ -285,14 +318,15 @@ HRESULT __cdecl OpenMember(const wchar_t* path,const wchar_t* member,const TtpCo
                 if(header.data.RedirType || (header.data.Flags&RHDF_DIRECTORY)) return TTPCOMM_ARCHIVE_UNSUPPORTED;
                 op.expected=header.Size();
                 if(op.expected>op.options.member_limit_bytes || op.expected>uint64_t(INT64_MAX)) return HRESULT_FROM_WIN32(ERROR_FILE_TOO_LARGE);
-                auto storage=std::make_shared<Storage>();
-                hr=storage->Prepare(op.expected,op.options.memory_limit_bytes); if(FAILED(hr)) return hr;
-                op.output=storage.get();
+                // A non-split member can still depend on other volumes (solid
+                // predecessors or a later volume). The first file's identity
+                // alone is insufficient for a retained cache of any such set.
+                hr=sink.Begin(op.expected,(archive.volumes || (header.data.Flags&(RHDF_SPLITBEFORE|RHDF_SPLITAFTER))) ? TTPCOMM_ARCHIVE_SPLIT : 0); if(FAILED(hr)) return hr;
+                op.sink=&sink;
                 hr=op.Result(RARProcessFileW(archive.value,RAR_TEST,nullptr,nullptr));
-                op.output=nullptr;
+                op.sink=nullptr;
                 if(FAILED(hr)) return hr;
-                if(storage->length!=op.expected) return HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
-                *out=new MemberStream(std::move(storage)); return S_OK;
+                return op.produced==op.expected ? S_OK : HRESULT_FROM_WIN32(ERROR_INVALID_DATA);
             }
             hr=op.Result(RARProcessFileW(archive.value,RAR_SKIP,nullptr,nullptr)); if(FAILED(hr)) return hr;
         }
@@ -302,6 +336,8 @@ HRESULT __cdecl OpenMember(const wchar_t* path,const wchar_t* member,const TtpCo
 }
 
 extern "C" BOOL __cdecl ttpcomm_query_archive(uint32_t abi,TtpCommArchiveApi* api) {
+    if(abi==TTPCOMM_ARCHIVE_STREAM_ABI)
+        return ttpcomm::archive::QueryStreams(reinterpret_cast<TtpCommArchiveStreamApi*>(api));
     if(!api || api->size<sizeof(*api) || abi!=TTPCOMM_ARCHIVE_ABI) return FALSE;
     *api={sizeof(*api),TTPCOMM_ARCHIVE_ABI,TTPCOMM_ARCHIVE_REQUIRED,0,Enumerate,OpenMember};
     return TRUE;
