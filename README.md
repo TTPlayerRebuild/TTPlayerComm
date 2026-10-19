@@ -1,5 +1,7 @@
 # ttpcomm 重建
 
+2026-10-20：SDK 增加可选音频格式识别协议（工厂 Probe 与 Reader SourceInfo），供独立音频插件和重建播放器共用。只增加头文件协议，不增加 DLL 导出或运行时依赖。见 [协议说明](sdk/AUDIO_FORMAT_PROBE.md)；副本同步工具为 `tools/sync_audio_format_sdk.py`。
+
 2026-10-19：按原版二进制差异审计修正 EQ／SSRC 异常恢复、标准标签接入、RAR 缓存等待及密码成员读取，并明确 ReplayGain 非有限输入和 IA32／SSE2 分派。67 个原版导出和 4 个扩展入口保持兼容。实现、最终构建和验证范围见 [修正记录](docs/GAP_FIXES_20261019.md)，修正前证据保留在 [差异审计](docs/GAP_AUDIT_20261019.md)。部分改动在重建播放器调用端，需要一起更新。
 
 2026-10-12：只读归档服务支持 ZIP／RAR4／RAR5、TAR／gzip／tar.gz／tgz／7z，补齐 UTF-8 ZIP 和单卷 ZIP64。引擎静态并入 DLL，保留 XP／Win7 兼容；后台流使用 ABI 2，原版导出不变。接口、资源限制、只读依据和验证范围见 [归档服务说明](docs/ARCHIVE_SERVICE.md)。
