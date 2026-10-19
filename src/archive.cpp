@@ -285,6 +285,10 @@ HRESULT __cdecl Enumerate(const wchar_t* path,const TtpCommArchiveOptions* optio
             const int code=header.Read(archive.value);
             if(code==ERAR_END_ARCHIVE) return op.Result(ERAR_SUCCESS);
             if(code) return op.Result(code);
+            // Only real directory/volume progress resets a stream open's
+            // preflight timeout. Repeated engine-lock polls must not reset it.
+            if(ttpcomm::archive::active_volumes && ttpcomm::archive::active_volumes->progressed)
+                ttpcomm::archive::active_volumes->progressed();
             if(index>=op.options.entry_limit) return HRESULT_FROM_WIN32(ERROR_TOO_MANY_NAMES);
             const auto name=header.Name();
             TtpCommArchiveEntry entry{}; entry.size=sizeof(entry); entry.index=index++;

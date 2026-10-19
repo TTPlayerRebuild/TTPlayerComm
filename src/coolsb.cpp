@@ -97,7 +97,7 @@ LONG collect_threads(ThreadHandles& handles) {
     if (!Thread32First(snapshot, &e)) result = GetLastError();
     else do {
         if (e.th32OwnerProcessID != GetCurrentProcessId() || e.th32ThreadID == GetCurrentThreadId()) continue;
-        HANDLE h = OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT | THREAD_QUERY_INFORMATION,
+        HANDLE h = OpenThread(SYNCHRONIZE | THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT | THREAD_SET_CONTEXT | THREAD_QUERY_INFORMATION,
             FALSE, e.th32ThreadID);
         if (!h) { if (GetLastError() == ERROR_INVALID_PARAMETER) continue; result = GetLastError(); break; }
         if (!handles.add(h)) { CloseHandle(h); result = ERROR_NOT_ENOUGH_MEMORY; break; }
@@ -108,24 +108,40 @@ LONG collect_threads(ThreadHandles& handles) {
 BOOL change(bool attach) {
     Guard guard;
     if (installed == attach) return TRUE;
-    LONG error = DetourTransactionBegin();
-    if (error != NO_ERROR) { SetLastError(error); return FALSE; }
-    ThreadHandles handles;
-    error = collect_threads(handles);
-    for (const auto& h : hooks) {
+    LONG error = NO_ERROR;
+    for (unsigned attempt = 0; attempt < 3; ++attempt) {
+        error = DetourTransactionBegin();
         if (error != NO_ERROR) break;
-        error = attach ? DetourAttach(h.original, h.replacement) : DetourDetach(h.original, h.replacement);
+        bool exited_thread = false;
+        {
+            ThreadHandles handles;
+            error = collect_threads(handles);
+            for (const auto& h : hooks) {
+                if (error != NO_ERROR) break;
+                error = attach ? DetourAttach(h.original, h.replacement) : DetourDetach(h.original, h.replacement);
+            }
+            // Collect handles and prepare trampolines before suspending anyone.
+            // The adapted bookkeeping avoids suspended threads' CRT heap locks.
+            for (SIZE_T i = 0; error == NO_ERROR && i < handles.size; ++i) {
+                error = DetourUpdateThread(handles.data[i]);
+                if (error != NO_ERROR)
+                    exited_thread = WaitForSingleObject(handles.data[i], 0) == WAIT_OBJECT_0;
+            }
+            // A thread can exit between collection and suspension. Detours has
+            // already marked this transaction failed: fully abort and release
+            // its handles before retrying, never continue the old transaction.
+            if (error != NO_ERROR) DetourTransactionAbort();
+            else error = DetourTransactionCommit();
+        }
+        if (error == NO_ERROR) {
+            installed = attach;
+            CoolSB_SetESBProc(reinterpret_cast<void*>(real_enable));
+            return TRUE;
+        }
+        if (!exited_thread) break;
     }
-    // Collect handles and prepare trampolines before suspending anyone. The
-    // adapted Detours bookkeeping uses VirtualAlloc, avoiding CRT heap locks.
-    for (SIZE_T i = 0; error == NO_ERROR && i < handles.size; ++i)
-        error = DetourUpdateThread(handles.data[i]);
-    if (error != NO_ERROR) DetourTransactionAbort();
-    else error = DetourTransactionCommit();
-    if (error != NO_ERROR) { SetLastError(error); return FALSE; }
-    installed = attach;
-    CoolSB_SetESBProc(reinterpret_cast<void*>(real_enable));
-    return TRUE;
+    SetLastError(error);
+    return FALSE;
 }
 }
 

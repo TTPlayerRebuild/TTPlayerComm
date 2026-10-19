@@ -12,6 +12,7 @@ std::wstring Full(const std::wstring& path){
     return full.data();
 }
 }
+std::wstring ArchivePath(const wchar_t* path){return Full(archive_format::Canonical(path));}
 std::wstring VolumeContext::Resolve(const std::wstring& expected){
     if(canceled && canceled())throw HRESULT_FROM_WIN32(ERROR_CANCELLED);
     const auto name=Full(expected);
@@ -38,9 +39,10 @@ void VolumeContext::TrackRar(const wchar_t* actual){
     for(const auto& p:rar_paths)archive_volumes::Check(_wcsicmp(p.c_str(),name.c_str())!=0,HRESULT_FROM_WIN32(ERROR_INVALID_DATA));
     archive_volumes::Check(rar_paths.size()<4096,TTPCOMM_ARCHIVE_UNSUPPORTED);
     rar_files.push_back(std::make_unique<archive_volumes::File>(name));rar_paths.push_back(name);
+    if(progressed)progressed();
 }
 std::unique_ptr<archive_volumes::Set> VolumeContext::Prepare(const wchar_t* path,const TtpCommArchiveOptions* limits){
-    archive=Full(archive_format::Canonical(path));
+    archive=ArchivePath(path);
     if(archive_format::Detect(path)==archive_format::Kind::rar){
         VolumeScope scope(*this);const auto hr=DiscoverRarVolumes(path,limits);if(FAILED(hr))throw hr;
         auto result=std::make_unique<archive_volumes::Set>(rar_paths.front(),rar_paths,canceled);

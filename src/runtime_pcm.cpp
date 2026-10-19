@@ -1,4 +1,5 @@
 #include "runtime_internal.h"
+#include "runtime_pcm_sse2.h"
 #include <climits>
 namespace ttpcomm::runtime {
 bool WaveFormat(const TtpCommPcmFormat* format,WAVEFORMATEXTENSIBLE& wave) noexcept {
@@ -38,6 +39,10 @@ int __cdecl PcmEncode(const TtpCommPcmFormat* format,const double* input,uint32_
 }
 int __cdecl PcmGain(double* samples,uint32_t count,double gain) noexcept {
     if(count && !samples) return TTPCOMM_INVALID;
-    pcm::ApplyGainHalfTo(samples,count,gain);return TTPCOMM_OK;
+    if(IsProcessorFeaturePresent(PF_XMMI64_INSTRUCTIONS_AVAILABLE))
+        ApplyGainHalfSse2(samples,count,gain);
+    else
+        pcm::ApplyGainHalfTo(samples,count,gain);
+    return TTPCOMM_OK;
 }
 }

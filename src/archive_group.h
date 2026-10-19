@@ -3,10 +3,12 @@
 #include <ttpcomm/archive_volumes.h>
 
 namespace ttpcomm::archive {
+std::wstring ArchivePath(const wchar_t*);
 struct VolumeContext {
     std::wstring archive;
     TtpCommArchiveVolumeOptions options{};
     std::function<bool()> canceled;
+    std::function<void()> progressed;
     std::vector<std::pair<std::wstring,std::wstring>> mappings;
     std::vector<std::unique_ptr<archive_volumes::File>> rar_files;
     std::vector<std::wstring> rar_paths;

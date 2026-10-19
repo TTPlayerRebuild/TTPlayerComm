@@ -21,6 +21,19 @@ for name in ['ssrc.cpp','ssrc.h','fft.h','dbesi0.c']:
         text=replace(text,'new Downsampler<float>(c)','new Downsampler<double>(c)')
         text=replace(text,'while(done<s)','while(true)')
         text=replace(text,'unsigned int sumread,sumwrite;','unsigned long long sumread,sumwrite;',2)
+        # calloc now throws on failure. Cover each constructor's raw arrays
+        # until the object is complete, including per-channel allocations.
+        for class_name, allocations in [('Upsampler',13),('Downsampler',17)]:
+            start=text.index(f'{class_name}<REAL>::{class_name}(')
+            end=text.index('\ntemplate<class REAL>',start+1)
+            constructor=text[start:end]
+            signature=constructor[:constructor.index('\n{')+2]
+            constructor=replace(constructor,signature,
+                signature+'\n  SsrcAllocations allocations(size_t(nch)*2+11);')
+            constructor=replace(constructor,'avs_malloc(','allocations.allocate(',allocations)
+            constructor=replace(constructor,'  sumread = sumwrite = 0;',
+                '  sumread = sumwrite = 0;\n  allocations.commit();')
+            text=text[:start]+constructor+text[end:]
         # TTPlayer trims delay in frames, limits EOF to floor(total*ratio)+2,
         # and always advances the convolution history, including at EOF.
         for unused in range(2):

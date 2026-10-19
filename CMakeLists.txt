@@ -7,6 +7,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(cmake/legacy_windows.cmake)
 include(cmake/size_release.cmake)
+# Apply the x86 baseline before creating any dependency target. Modern MSVC
+# defaults to SSE2 even when the PE imports and subsystem remain XP-compatible.
+# Explicit intrinsic fast paths in archive codecs still use their CPU dispatch;
+# ordinary C/C++ code, including DSP and runtime wrappers, must work without SSE2.
+add_compile_options("$<$<COMPILE_LANGUAGE:C,CXX>:/arch:IA32>")
 include(cmake/version.cmake)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 include(cmake/dependencies.cmake)
@@ -16,7 +21,7 @@ include(cmake/archive_seven.cmake)
 
 # All 67 exports are recovered. Keep the CMake target name for build continuity;
 # the release filename and PE module identity now match the original host ABI.
-add_library(ttpcomm_core SHARED src/archive.cpp src/runtime.cpp src/extensions.cpp src/runtime_services.cpp src/runtime_pcm.cpp src/runtime_quantizer.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
+add_library(ttpcomm_core SHARED src/archive.cpp src/runtime.cpp src/extensions.cpp src/runtime_services.cpp src/runtime_pcm.cpp src/runtime_pcm_sse2.cpp src/runtime_quantizer.cpp src/security.cpp src/identity.cpp src/digest.cpp src/compression.cpp src/mpeg.cpp src/dream.cpp src/coolsb.cpp
   src/resampler.cpp src/replaygain.cpp src/equalizer.cpp src/surround.cpp src/dts.cpp src/spectrum.cpp src/abi_checks.cpp
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
@@ -29,6 +34,10 @@ set_source_files_properties(src/dream.cpp PROPERTIES COMPILE_OPTIONS "/arch:IA32
 # Preserve the host's hot PCM compilation policy, including the math intrinsic
 # path used by gain/quantization. Cold tag/compression wrappers remain /O1.
 set_source_files_properties(src/runtime_pcm.cpp src/runtime_quantizer.cpp PROPERTIES COMPILE_OPTIONS "/O2;/Ob2")
+# Only PcmGain's CPU-checked branch can enter this separate implementation.
+# Disable LTCG for it as well as inlining, so SSE2 instructions cannot be
+# propagated into the IA32 dispatcher or its scalar fallback.
+set_source_files_properties(src/runtime_pcm_sse2.cpp PROPERTIES COMPILE_OPTIONS "/arch:SSE2;/O2;/Ob2;/GL-")
 # Only the terminal /GS reporter must not recursively instrument itself.
 set_source_files_properties(src/security.cpp PROPERTIES COMPILE_OPTIONS "/GS-")
 target_link_options(ttpcomm_core PRIVATE "/MAP:$<TARGET_FILE_DIR:ttpcomm_core>/ttpcomm.map")

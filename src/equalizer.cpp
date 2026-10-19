@@ -98,6 +98,25 @@ public:
     virtual bool submit(const double* samples,int count) noexcept {
         if(!ready_ || !samples || count<0)return false;
         try {
+            // Reserve every channel before consuming any input. A failed
+            // allocation must not leave one channel ahead of the others or
+            // leave pending[] full when the caller retries the same samples.
+            const auto frames=static_cast<size_t>(count/channels_);
+            for(int c=0;c<std::min(channels_,10);++c) {
+                auto& state=*channel_[c];
+                const auto blocks=(frames+state.used)/blockSize;
+                const auto emitted=blocks*blockSize-(blocks&&state.first ? blockSize/2 : 0);
+                auto& queue=state.queue;
+                if(emitted>queue.max_size()-queue.size())return false;
+                const auto required=queue.size()+emitted;
+                if(required>queue.capacity()) {
+                    // Keep geometric growth when callers queue several blocks
+                    // before receive(), rather than reallocating each submit.
+                    const auto growth=queue.capacity()+
+                        std::min(queue.capacity()/2,queue.max_size()-queue.capacity());
+                    queue.reserve(std::max(required,growth));
+                }
+            }
             for(int c=0;c<std::min(channels_,10);++c) {
                 auto& state=*channel_[c];
                 for(int i=0;i<count/channels_;++i) {

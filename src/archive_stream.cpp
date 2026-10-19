@@ -19,23 +19,71 @@ HRESULT Cancelled() { return HRESULT_FROM_WIN32(ERROR_CANCELLED); }
 HRESULT LastError() { const auto e=GetLastError();return HRESULT_FROM_WIN32(e ? e : ERROR_READ_FAULT); }
 bool Zip(const wchar_t* path) { return archive_format::Detect(path)==archive_format::Kind::zip; }
 bool Rar(const wchar_t* path) { return archive_format::Detect(path)==archive_format::Kind::rar; }
+struct OpenControl {
+    const TtpCommArchiveStreamOptions& options;
+    DWORD progressed=GetTickCount();
+    HRESULT result{S_OK};
+    HRESULT Poll() {
+        if(FAILED(result))return result;
+        if(options.canceled && options.canceled(options.context))result=Cancelled();
+        else if(GetTickCount()-progressed>=(options.timeout_ms?options.timeout_ms:30000))result=HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+        return result;
+    }
+    void Advance() {
+        if(FAILED(Poll()))throw result;
+        progressed=GetTickCount();
+    }
+};
 struct FileIdentity {
-    std::unique_ptr<archive_volumes::Set> volumes;std::wstring path,key;
+    std::unique_ptr<archive_volumes::Set> volumes;std::wstring source,path,key;
+    std::vector<std::wstring> paths;
     std::vector<std::pair<std::wstring,std::wstring>> mappings;
-    HRESULT Open(const wchar_t* input,const TtpCommArchiveStreamOptions& options) {
-        try{
-            VolumeContext context;if(active_volumes){context.options=active_volumes->options;context.mappings=active_volumes->mappings;}
-            context.canceled=[fn=options.canceled,opaque=options.context]{return fn && fn(opaque);};
-            auto limits=options.limits;limits.size=sizeof(limits);limits.context=&context;
+    void Finish(VolumeContext& context) {
+        volumes->ForgetCallbacks();path=volumes->Path();key=volumes->Key();paths=volumes->Paths();mappings=std::move(context.mappings);
+    }
+    HRESULT Open(const wchar_t* input,VolumeContext& context,OpenControl& control) {
+        try {
+            auto limits=control.options.limits;limits.size=sizeof(limits);limits.context=&context;
             limits.progress=[](void* p,uint64_t,uint64_t)->BOOL{auto& c=*static_cast<VolumeContext*>(p);return !c.canceled || !c.canceled();};
-            volumes=context.Prepare(input,&limits);volumes->ForgetCallbacks();path=volumes->Path();key=volumes->Key();mappings=std::move(context.mappings);return S_OK;
+            volumes=context.Prepare(input,&limits);
+            if(FAILED(control.Poll()))return control.result;
+            Finish(context);return S_OK;
+        }catch(HRESULT hr){return FAILED(control.result)?control.result:hr;}
+    }
+    HRESULT OpenKnown(const std::wstring& first,const std::vector<std::wstring>& files,
+        const std::vector<std::pair<std::wstring,std::wstring>>& known_mappings,
+        const std::wstring& expected_key,VolumeContext& context,OpenControl& control) {
+        try {
+            // Re-resolve missing-volume mappings on the caller thread. A file
+            // restored at its expected location, or a newly selected replacement,
+            // must invalidate the old group even if every old file still exists.
+            for(const auto& mapping:known_mappings) {
+                const auto current=context.Resolve(mapping.first);control.Advance();
+                if(_wcsicmp(current.c_str(),mapping.second.c_str()))return S_FALSE;
+            }
+        }catch(HRESULT hr){return FAILED(control.result)?control.result:hr;}
+        // Keep only decisions made by the current resolver in this context;
+        // later candidates/discovery can reuse them without another UI prompt.
+        // File identity failures below require rediscovery, resolver failures
+        // above are an explicit caller abort and must not prompt a second time.
+        try {
+            // This constructor polls once before each known file; reaching the
+            // next poll means the preceding identity was successfully read.
+            auto checked=std::make_unique<archive_volumes::Set>(first,files,[&control]{control.Advance();return false;});
+            control.Advance();
+            if(!checked->Reliable() || _wcsicmp(checked->Key().c_str(),expected_key.c_str()))return S_FALSE;
+            volumes=std::move(checked);Finish(context);return S_OK;
+        }catch(HRESULT hr){
+            if(FAILED(control.result))return control.result;
+            if(hr==Cancelled() || hr==HRESULT_FROM_WIN32(ERROR_TIMEOUT) || hr==E_OUTOFMEMORY)return hr;
+            return S_FALSE;
         }
-        catch(HRESULT hr){return hr;}
     }
 };
 std::atomic<uint64_t> sequence{0};
 struct Task final : Sink {
-    std::wstring path,member,key,password;
+    std::wstring source,path,member,key,password;
+    std::vector<std::wstring> paths;
     TtpCommArchiveOptions limits{};
     const uint64_t id=++sequence;
     std::mutex mutex,join_mutex;std::condition_variable changed;
@@ -49,7 +97,7 @@ struct Task final : Sink {
     std::atomic<DWORD> activity{GetTickCount()};
     uint64_t work_done{},work_total{}; // producer only
     Task(FileIdentity& input,const wchar_t* name,const TtpCommArchiveOptions& options)
-        :path(input.path),member(name),key(input.key),limits(options) {
+        :source(input.source),path(input.path),member(name),key(input.key),paths(std::move(input.paths)),limits(options) {
         has_password=options.password!=nullptr;if(has_password)password=options.password;
         limits.password=nullptr;limits.progress=nullptr;limits.context=nullptr;
         identity=std::move(input.volumes);identity_reliable=identity->Reliable();mappings=std::move(input.mappings);
@@ -145,16 +193,23 @@ struct Task final : Sink {
         if(!users && !complete)cancel=true;
         changed.notify_all();
     }
-    bool Matches(const FileIdentity& input,const wchar_t* name,const TtpCommArchiveOptions& options) {
-        std::lock_guard<std::mutex> lock(mutex);
+    bool MatchesOptions(const wchar_t* name,const TtpCommArchiveOptions& options) const {
         const auto limit=options.member_limit_bytes?options.member_limit_bytes:8ULL*1024*1024*1024;
         const auto dict=std::min(options.dictionary_limit_kib?options.dictionary_limit_kib:256u*1024,512u*1024);
         const auto mem=std::min(options.memory_limit_bytes?options.memory_limit_bytes:16u*1024*1024,64u*1024*1024);
         const auto entries=options.entry_limit?options.entry_limit:100000u;
         return cacheable && !cancel && (!complete || SUCCEEDED(result)) && has_password==(options.password!=nullptr) &&
-            (!has_password || password==options.password) && !_wcsicmp(key.c_str(),input.key.c_str()) &&
+            (!has_password || password==options.password) &&
             !_wcsicmp(member.c_str(),name) && limits.member_limit_bytes==limit &&
             limits.dictionary_limit_kib==dict && limits.memory_limit_bytes==mem && limits.entry_limit==entries;
+    }
+    bool KnownGroup(const std::wstring& input,const wchar_t* name,const TtpCommArchiveOptions& options) {
+        std::lock_guard<std::mutex> lock(mutex);
+        return identity_reliable && !_wcsicmp(source.c_str(),input.c_str()) && MatchesOptions(name,options);
+    }
+    bool Matches(const FileIdentity& input,const wchar_t* name,const TtpCommArchiveOptions& options) {
+        std::lock_guard<std::mutex> lock(mutex);
+        return !_wcsicmp(key.c_str(),input.key.c_str()) && MatchesOptions(name,options);
     }
 };
 std::mutex cache_mutex;
@@ -271,9 +326,27 @@ HRESULT __cdecl Open(const wchar_t* path,const wchar_t* member,const TtpCommArch
     if(options.flags&~TTPCOMM_ARCHIVE_CACHE_CURRENT)return E_INVALIDARG;
     if(options.limits.size && options.limits.size!=sizeof(options.limits))return E_INVALIDARG;
     try {
-        if(options.canceled && options.canceled(options.context))return Cancelled();
-        FileIdentity identity;HRESULT hr=identity.Open(path,options);if(FAILED(hr))return hr;
+        OpenControl control{options};if(FAILED(control.Poll()))return control.result;
+        VolumeContext context;if(active_volumes){context.options=active_volumes->options;context.mappings=active_volumes->mappings;}
+        context.canceled=[&control]{return FAILED(control.Poll());};
+        context.progressed=[&control]{control.Advance();};
+        FileIdentity identity;identity.source=ArchivePath(path);context.archive=identity.source;
         std::wstring name(member);std::replace(name.begin(),name.end(),L'/',L'\\');
+        HRESULT hr=S_FALSE;
+        if((options.flags&TTPCOMM_ARCHIVE_CACHE_CURRENT) && Rar(path)) {
+            // Do not acquire UnRAR's global engine lock for a known unchanged
+            // group. Snapshot candidates under the manager lock, then open and
+            // validate every actual volume without either engine/cache lock.
+            std::vector<std::shared_ptr<Task>> candidates;
+            {std::lock_guard<std::mutex> lock(cache_mutex);candidates=cached;}
+            for(auto i=candidates.rbegin();i!=candidates.rend();++i) {
+                if(!(*i)->KnownGroup(identity.source,name.c_str(),options.limits))continue;
+                hr=identity.OpenKnown((*i)->path,(*i)->paths,(*i)->mappings,(*i)->key,context,control);
+                if(FAILED(hr))return hr;if(hr==S_OK)break;
+            }
+        }
+        if(hr!=S_OK)hr=identity.Open(path,context,control);
+        if(FAILED(hr))return hr;
         std::shared_ptr<Task> task;std::vector<std::shared_ptr<Task>> retired;
         {
             std::lock_guard<std::mutex> lock(cache_mutex);
@@ -303,7 +376,7 @@ HRESULT __cdecl Open(const wchar_t* path,const wchar_t* member,const TtpCommArch
         try{stream=new Stream(task,options);}catch(...){task->DropUser();throw;}
         hr=stream->Initialize();if(FAILED(hr)){stream->Release();return hr;}
         *out=static_cast<IStream*>(stream);return S_OK;
-    }catch(const std::bad_alloc&){return E_OUTOFMEMORY;}catch(...){return E_FAIL;}
+    }catch(HRESULT hr){return hr;}catch(const std::bad_alloc&){return E_OUTOFMEMORY;}catch(...){return E_FAIL;}
 }
 HRESULT __cdecl Status(IStream* stream,TtpCommArchiveStreamStatus* out) {
     if(!stream || !out)return E_POINTER;StatusInterface* status{};

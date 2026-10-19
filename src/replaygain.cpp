@@ -2,6 +2,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <new>
 #include "replaygain_coefficients.inc"
 
@@ -45,6 +46,13 @@ public:
     }
     virtual bool process(const double* samples,unsigned channels,unsigned frames) noexcept {
         if(!coefficients_ || !channels || (frames && !samples))return false;
+        if(frames>std::numeric_limits<size_t>::max()/sizeof(double)/channels)return false;
+        // Validate the whole submission before changing filters, histogram or
+        // peak, so rejecting a bad sample also rejects the preceding frames.
+        const double* check=samples;
+        for(unsigned i=0;i<frames;++i,check+=channels)
+            for(unsigned c=0;c<channels;++c)
+                if(!std::isfinite(check[c]))return false;
         for(unsigned i=0;i<frames;++i,samples+=channels) {
             double l,r;
             if(channels==1)l=r=samples[0];

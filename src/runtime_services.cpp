@@ -91,8 +91,11 @@ int __cdecl TagDecode(const void* input,uint32_t size,uint32_t major,uint32_t fl
             static_cast<unsigned char>(flags),unsync!=0,storage,remaining);
         if(!view) return TTPCOMM_DATA;
         if(storage.capacity()) {
+            // Decoding may leave a borrowed slice after grouping/DLI bytes
+            // inside the owned unsynchronized buffer.
+            const auto offset=static_cast<size_t>(view->data()-storage.data());
             auto owner=std::make_unique<std::vector<unsigned char>>(std::move(storage));
-            *output={owner->data(),static_cast<uint32_t>(view->size()),owner.get()};owner.release();
+            *output={owner->data()+offset,static_cast<uint32_t>(view->size()),owner.get()};owner.release();
         } else *output={view->data(),static_cast<uint32_t>(view->size()),nullptr};
         *budget=remaining;return TTPCOMM_OK;
     } catch(const std::bad_alloc&) {return TTPCOMM_NOMEM;}
