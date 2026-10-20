@@ -1,4 +1,5 @@
 #include "runtime_internal.h"
+#include "audio_internal.h"
 #include <ttpcomm/tags_zlib.h>
 #include <algorithm>
 #include <climits>
@@ -106,6 +107,8 @@ void __cdecl TagDestroy(void* object) noexcept {delete static_cast<std::vector<u
 }
 extern "C" int __cdecl ttpcomm_query_runtime(uint32_t version,uint32_t required,TtpCommRuntimeApi* api) noexcept {
     using namespace ttpcomm::runtime;
+    if(version==TTPCOMM_AUDIO_ABI)
+        return ttpcomm::audio::Query(required,reinterpret_cast<TtpCommAudioApi*>(api));
     if(!api || api->size<sizeof(*api) || version!=TTPCOMM_RUNTIME_ABI || (required&~TTPCOMM_RUNTIME_REQUIRED)) return 0;
     const TtpCommRuntimeApi table{sizeof(table),TTPCOMM_RUNTIME_ABI,TTPCOMM_RUNTIME_REQUIRED,0,
         Inflate,Crc,PcmDecode,PcmEncode,PcmGain,QuantizerCreate,QuantizerDestroy,QuantizerEncode,QuantizerReset,

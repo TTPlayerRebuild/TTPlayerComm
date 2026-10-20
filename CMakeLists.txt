@@ -26,6 +26,7 @@ add_library(ttpcomm_core SHARED src/archive.cpp src/runtime.cpp src/extensions.c
   src/ttpcomm_core.def "${CMAKE_CURRENT_BINARY_DIR}/generated/version.rc")
 add_dependencies(ttpcomm_core ttpcomm_version)
 target_sources(ttpcomm_core PRIVATE src/archive_zip.cpp src/archive_stream.cpp src/archive_extended.cpp src/archive_seven.cpp src/archive_group.cpp)
+target_sources(ttpcomm_core PRIVATE src/audio_encoder.cpp src/audio_effects.cpp)
 target_compile_definitions(ttpcomm_core PRIVATE UNICODE _UNICODE NOMINMAX
   WIN32_LEAN_AND_MEAN _WIN32_WINNT=0x0501 _CRT_SECURE_NO_WARNINGS)
 target_compile_options(ttpcomm_core PRIVATE /W4 /permissive- /EHsc /utf-8 /fp:precise)

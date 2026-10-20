@@ -33,3 +33,11 @@ LANGUAGE 0, 0
 BEGIN
   0x41435054L, 1L, 3L, 16383L
 END
+
+// Audio capability descriptor for static release/package verification.
+// TPAA, descriptor version 1, audio runtime ABI 2, encoder + effects.
+LANGUAGE 0, 0
+504 RCDATA
+BEGIN
+  0x41415054L, 1L, 2L, 3L
+END

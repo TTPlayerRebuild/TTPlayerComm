@@ -1,5 +1,7 @@
 # 重建宿主运行接口 ABI 1
 
+2026-10-20：同一查询入口新增独立的 `version=2` 音频服务表，提供高精度最终编码和现代均衡器／环绕。本文所述 ABI 1 的大小、函数指针和行为不变；新合同及验证范围见 [音频 ABI 2](AUDIO_RUNTIME_ABI2.md)。
+
 `2026.10.08p3` 新增 `ttpcomm_query_runtime`（ordinal 501），原 67 个导出及 ordinal 500 不变。旧宿主不调用新接口，仍使用 `ttpcomm_getversion()` 返回的 `0x50700`。
 
 ## 协议
