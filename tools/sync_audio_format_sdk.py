@@ -2,7 +2,7 @@
 import argparse
 from pathlib import Path
 
-PLUGINS = 'aac ogg flac ape webm ac3dts mod mpc asf rm tak vqf'.split()
+PLUGINS = 'aac ogg flac ape webm ac3dts mod mpc asf rm tak vqf dts dsd'.split()
 FILES = ('audio_format_probe.h', 'audio_format_probe_impl.h')
 
 def main():
