@@ -2,8 +2,8 @@
 import argparse
 from pathlib import Path
 
-PLUGINS = 'aac ogg flac ape webm ac3dts mod mpc asf rm tak vqf dts dsd'.split()
-FILES = ('audio_format_probe.h', 'audio_format_probe_impl.h')
+PLUGINS = 'aac ogg flac ape webm ac3dts mod mpc asf rm tak vqf dts dsd wv ofr'.split()
+FILES = ('audio_format_probe.h', 'audio_format_probe_impl.h', 'pcm_format.h')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
